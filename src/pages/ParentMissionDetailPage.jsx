@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import FeedbackBanner from '../components/FeedbackBanner'
 import {
@@ -38,6 +38,13 @@ function ParentMissionDetailPage() {
     const status = String(mission?.status || '').toUpperCase()
     return status === 'IN_PROGRESS' && String(mission?.therapistFeedback || '').trim().length > 0
   }, [mission?.status, mission?.therapistFeedback])
+
+  const renderMetaRow = (label, value) => (
+    <div className="flex flex-col gap-1 sm:flex-row sm:items-start">
+      <span className="shrink-0 font-semibold text-slate-800 sm:w-32">{label}</span>
+      <span className="min-w-0 break-all text-slate-700">{value || KO.common.none}</span>
+    </div>
+  )
 
   const loadMission = async (syncParentNote = true) => {
     if (!missionId) return
@@ -104,10 +111,10 @@ function ParentMissionDetailPage() {
   }
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-5xl p-6 md:p-10">
-      <section className="rounded-2xl border border-emerald-200 bg-white/90 p-6 shadow-sm backdrop-blur md:p-8">
+    <main className="mx-auto min-h-screen w-full max-w-5xl p-4 sm:p-6 md:p-10">
+      <section className="rounded-2xl border border-emerald-200 bg-white/90 p-4 shadow-sm backdrop-blur sm:p-6 md:p-8">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
+          <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">Parent Mission</p>
             <h1 className="mt-1 text-2xl font-bold text-slate-900">{KO.parentMissionDetail.title}</h1>
           </div>
@@ -139,12 +146,14 @@ function ParentMissionDetailPage() {
             )}
 
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm">
-              <p><span className="font-semibold">미션 ID:</span> {mission.missionId}</p>
-              <p className="mt-1"><span className="font-semibold">상태:</span> {mission.status}</p>
-              <p className="mt-1"><span className="font-semibold">템플릿:</span> {mission.template?.title || mission.templateName || KO.common.none}</p>
-              <p className="mt-1"><span className="font-semibold">마감일:</span> {mission.dueDate || KO.common.none}</p>
-              <p className="mt-1"><span className="font-semibold">완료일:</span> {mission.completedAt || KO.common.none}</p>
-              <p className="mt-1"><span className="font-semibold">치료사 피드백:</span> {mission.therapistFeedback || KO.common.none}</p>
+              <div className="space-y-2">
+                {renderMetaRow('미션 ID:', mission.missionId)}
+                {renderMetaRow('상태:', mission.status)}
+                {renderMetaRow('템플릿:', mission.template?.title || mission.templateName)}
+                {renderMetaRow('마감일:', mission.dueDate)}
+                {renderMetaRow('완료일:', mission.completedAt)}
+                {renderMetaRow('치료사 피드백:', mission.therapistFeedback)}
+              </div>
             </div>
 
             <label className="text-xs font-semibold text-slate-700">
@@ -179,7 +188,7 @@ function ParentMissionDetailPage() {
                   type="file"
                   accept="image/*"
                   onChange={(e) => setPhotoFile(e.target.files?.[0] || null)}
-                  className="text-xs"
+                  className="max-w-full text-xs"
                 />
                 <button
                   type="button"
@@ -208,9 +217,9 @@ function ParentMissionDetailPage() {
                         className="mb-2 h-20 w-20 rounded border border-slate-300 object-cover"
                       />
                     )}
-                    <p>파일명: {photo.originalFileName || KO.common.none}</p>
-                    <p>타입: {photo.contentType || KO.common.none}</p>
-                    <p>크기: {photo.fileSize ?? KO.common.none} bytes</p>
+                    <p className="break-all">파일명: {photo.originalFileName || KO.common.none}</p>
+                    <p className="break-all">타입: {photo.contentType || KO.common.none}</p>
+                    <p className="break-all">크기: {photo.fileSize ?? KO.common.none} bytes</p>
                   </div>
                 ))}
               </div>
