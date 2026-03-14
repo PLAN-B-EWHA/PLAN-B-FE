@@ -54,7 +54,7 @@ function MissionCalendarPage() {
   const [status, setStatus] = useState('ALL')
   const [viewMode, setViewMode] = useState('calendar')
 
-  const [pageSize] = useState(200)
+  const [pageSize] = useState(100)
   const [totalElements, setTotalElements] = useState(0)
   const latestLoadRequestId = useRef(0)
 
