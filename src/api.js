@@ -382,6 +382,58 @@ export async function batchVerifyMissionsRequest(
   })
 }
 
+export async function previewUnityMissionGenerationRequest(accessToken, payload) {
+  return request('/api/unity/missions/generate/preview', {
+    method: 'POST',
+    headers: withBearer(accessToken, { 'Content-Type': 'application/json' }),
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function generateUnityMissionRequest(accessToken, payload) {
+  return request('/api/unity/missions/generate', {
+    method: 'POST',
+    headers: withBearer(accessToken, { 'Content-Type': 'application/json' }),
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function bulkGenerateUnityMissionsRequest(accessToken, payload) {
+  return request('/api/unity/missions/generate/bulk', {
+    method: 'POST',
+    headers: withBearer(accessToken, { 'Content-Type': 'application/json' }),
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function latestUnityMissionsRequest(accessToken, limit = 20) {
+  return request(`/api/unity/missions/latest?limit=${limit}`, {
+    headers: withBearer(accessToken),
+  })
+}
+
+export async function approveUnityMissionRequest(accessToken, unityMissionId) {
+  return request(`/api/unity/missions/${unityMissionId}/approve`, {
+    method: 'PATCH',
+    headers: withBearer(accessToken),
+  })
+}
+
+export async function createGameSessionRequest(accessToken, childId) {
+  const params = new URLSearchParams({ childId: String(childId) })
+  return request(`/api/game-sessions?${params.toString()}`, {
+    method: 'POST',
+    headers: withBearer(accessToken),
+  })
+}
+
+export async function unityMissionsBySessionRequest(accessToken, sessionToken) {
+  const params = new URLSearchParams({ sessionToken: String(sessionToken) })
+  return request(`/api/unity/missions?${params.toString()}`, {
+    headers: withBearer(accessToken),
+  })
+}
+
 export async function healthRequest() {
   return request('/actuator/health')
 }

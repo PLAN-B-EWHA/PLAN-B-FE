@@ -17,6 +17,7 @@ import NotesPage from './pages/NotesPage'
 import TemplateManagementPage from './pages/TemplateManagementPage'
 import MissionCalendarPage from './pages/MissionCalendarPage'
 import TherapistReviewQueuePage from './pages/TherapistReviewQueuePage'
+import UnityMissionFlowTestPage from './pages/UnityMissionFlowTestPage'
 
 function App() {
   return (
@@ -25,6 +26,7 @@ function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
       <Route path="/403" element={<ForbiddenPage />} />
+      <Route path="/unity-mission-flow-test" element={<UnityMissionFlowTestPage />} />
 
       <Route
         path="/home"
