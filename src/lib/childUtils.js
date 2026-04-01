@@ -1,3 +1,5 @@
+import { resolveApiUrl } from './api'
+
 export const defaultChildForm = {
   name: '',
   birthDate: '',
@@ -126,11 +128,5 @@ export function resolveUploadUrl(url) {
     return url
   }
 
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
-
-  if (url.startsWith('/')) {
-    return `${apiBaseUrl}${url}`
-  }
-
-  return `${apiBaseUrl}/${url}`
+  return resolveApiUrl(url, { skipApiPrefix: true })
 }

@@ -1,15 +1,31 @@
 const API_PREFIX = '/api'
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '')
+
+function normalizePath(path) {
+  if (!path) {
+    return '/'
+  }
+
+  return path.startsWith('/') ? path : `/${path}`
+}
 
 function buildUrl(path, skipApiPrefix) {
   if (/^https?:\/\//.test(path)) {
     return path
   }
 
-  if (skipApiPrefix) {
-    return path
-  }
+  const normalizedPath = normalizePath(path)
+  const apiPath = skipApiPrefix
+    ? normalizedPath
+    : normalizedPath.startsWith(API_PREFIX)
+      ? normalizedPath
+      : `${API_PREFIX}${normalizedPath}`
 
-  return path.startsWith(API_PREFIX) ? path : `${API_PREFIX}${path}`
+  return API_BASE_URL ? `${API_BASE_URL}${apiPath}` : apiPath
+}
+
+export function resolveApiUrl(path, options = {}) {
+  return buildUrl(path, options.skipApiPrefix)
 }
 
 export async function apiFetch(path, options = {}) {
