@@ -1,3 +1,4 @@
+import { AdminUserManagementPage } from './AdminUserManagementPage'
 import { ParentDashboardPage } from './ParentDashboardPage'
 import { PendingApprovalPage } from './PendingApprovalPage'
 import { TherapistDashboardPage } from './TherapistDashboardPage'
@@ -7,6 +8,10 @@ export function DashboardPage() {
   const { jwtPayload, user } = useAuth()
   const roles = user?.roles || jwtPayload?.roles || []
   const status = user?.status || jwtPayload?.status || jwtPayload?.memberStatus || null
+
+  if (roles.includes('ADMIN')) {
+    return <AdminUserManagementPage />
+  }
 
   if (roles.includes('PENDING') || status === 'PENDING') {
     return <PendingApprovalPage />

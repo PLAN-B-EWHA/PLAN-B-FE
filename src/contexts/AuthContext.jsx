@@ -161,7 +161,10 @@ export function AuthProvider({ children }) {
   async function login(values) {
     const response = await apiFetch('/auth/login', {
       method: 'POST',
-      body: values,
+      body: {
+        email: values.email,
+        password: values.password,
+      },
     })
     const payload = extractApiPayload(response)
     const nextUser = buildUserFromToken(payload.accessToken, readStoredUser())
