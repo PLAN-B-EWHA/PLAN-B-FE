@@ -1,4 +1,4 @@
-import { resolveApiUrl } from './api'
+﻿import { resolveApiUrl } from './api'
 
 export const defaultChildForm = {
   name: '',
@@ -17,7 +17,7 @@ export const defaultChildForm = {
 }
 
 export const languageSkillOptions = [
-  { value: 'NONVERBAL', label: '비언어 표현 중심' },
+  { value: 'NONVERBAL', label: '비언어적 표현 중심' },
   { value: 'VOCABULARY', label: '단어 표현 가능' },
   { value: 'SHORT_SENTENCE', label: '짧은 문장 가능' },
   { value: 'FLUENT', label: '유창한 표현 가능' },
@@ -34,7 +34,7 @@ export const expressionTagOptions = [
   { value: 'SAD', label: '슬픔' },
   { value: 'FEAR', label: '두려움' },
   { value: 'SURPRISE', label: '놀람' },
-  { value: 'DISGUST', label: '싫음' },
+  { value: 'DISGUST', label: '혐오' },
   { value: 'ANGRY', label: '분노' },
 ]
 

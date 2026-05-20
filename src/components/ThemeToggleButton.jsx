@@ -1,23 +1,30 @@
 import { useTheme } from '../contexts/ThemeContext'
 
 export function ThemeToggleButton() {
-  const { isDarkMode, toggleTheme } = useTheme()
+  const { isDarkMode, toggleTheme, palette, setPalette } = useTheme()
+  const palettes = ['clinical', 'sage-clinical', 'deep']
+  const paletteColors = {
+    clinical: '#2f6e89',
+    'sage-clinical': '#5f7d51',
+    deep: '#4f6ea8',
+  }
+
+  function cyclePalette() {
+    const index = palettes.indexOf(palette)
+    const next = palettes[(index + 1) % palettes.length]
+    setPalette(next)
+  }
 
   return (
-    <button
-      className="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-      onClick={toggleTheme}
-      type="button"
-    >
-      <div>
-        <p className="text-sm font-semibold text-slate-900">다크 모드</p>
-        <p className="mt-1 text-xs text-slate-400">{isDarkMode ? '어두운 화면으로 보고 있어요' : '밝은 화면으로 보고 있어요'}</p>
-      </div>
-      <div className={`relative h-7 w-12 rounded-full transition ${isDarkMode ? 'bg-[var(--brand-500)]' : 'bg-slate-200'}`}>
-        <span
-          className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition ${isDarkMode ? 'left-6' : 'left-1'}`}
-        />
-      </div>
-    </button>
+    <section className="theme-compact-controls">
+      <button className="theme-circle-btn" onClick={cyclePalette} type="button">
+        <span className="theme-circle-fill" style={{ backgroundColor: paletteColors[palette] || paletteColors.clinical }} />
+      </button>
+      <button className="theme-mode-btn compact" onClick={toggleTheme} type="button">
+        <div className={`theme-toggle ${isDarkMode ? 'dark' : ''}`}>
+          <span />
+        </div>
+      </button>
+    </section>
   )
 }

@@ -1,25 +1,53 @@
+﻿import { useLocation } from 'react-router-dom'
+import { AdminRagDebugPage } from './AdminRagDebugPage'
+import { AdminRagSourcePage } from './AdminRagSourcePage'
+import { AdminScenarioBatchPage } from './AdminScenarioBatchPage'
 import { AdminUserManagementPage } from './AdminUserManagementPage'
 import { ParentDashboardPage } from './ParentDashboardPage'
+import { ParentHomePage } from './ParentHomePage'
+import { ParentOfflinePage } from './ParentOfflinePage'
 import { PendingApprovalPage } from './PendingApprovalPage'
+import { NotificationInboxPage } from './NotificationInboxPage'
+import { NotificationSettingsPage } from './NotificationSettingsPage'
 import { TherapistDashboardPage } from './TherapistDashboardPage'
+import { TherapistHomePage } from './TherapistHomePage'
+import { TherapistOfflinePage } from './TherapistOfflinePage'
 import { useAuth } from '../contexts/AuthContext'
 
 export function DashboardPage() {
+  const location = useLocation()
   const { jwtPayload, user } = useAuth()
   const roles = user?.roles || jwtPayload?.roles || []
   const status = user?.status || jwtPayload?.status || jwtPayload?.memberStatus || null
+  const isAnalysisPage = location.pathname.startsWith('/app/analysis')
+  const isOfflinePage = location.pathname.startsWith('/app/offline')
+  const isAlertsPage = location.pathname.startsWith('/app/alerts')
+  const isSettingsPage = location.pathname.startsWith('/app/settings')
+  const isAdminRagSourcePage = location.pathname.startsWith('/app/admin/rag-sources')
+  const isAdminScenarioBatchPage = location.pathname.startsWith('/app/admin/scenario-batch')
+  const isAdminRagPage = location.pathname.startsWith('/app/admin/rag')
+  const isAdminUsersPage = location.pathname.startsWith('/app/admin/users')
 
   if (roles.includes('ADMIN')) {
+    if (isAdminScenarioBatchPage) return <AdminScenarioBatchPage />
+    if (isAdminRagSourcePage) return <AdminRagSourcePage />
+    if (isAdminRagPage) return <AdminRagDebugPage />
+    if (isAdminUsersPage || location.pathname === '/app') return <AdminUserManagementPage />
     return <AdminUserManagementPage />
   }
 
-  if (roles.includes('PENDING') || status === 'PENDING') {
-    return <PendingApprovalPage />
-  }
+  if (roles.includes('PENDING') || status === 'PENDING') return <PendingApprovalPage />
 
   if (roles.includes('THERAPIST')) {
-    return <TherapistDashboardPage />
+    if (isAlertsPage) return <NotificationInboxPage />
+    if (isSettingsPage) return <NotificationSettingsPage />
+    if (isOfflinePage) return <TherapistOfflinePage />
+    return isAnalysisPage ? <TherapistDashboardPage /> : <TherapistHomePage />
   }
 
-  return <ParentDashboardPage />
+  if (isAlertsPage) return <NotificationInboxPage />
+  if (isSettingsPage) return <NotificationSettingsPage />
+  if (isOfflinePage) return <ParentOfflinePage />
+
+  return isAnalysisPage ? <ParentDashboardPage /> : <ParentHomePage />
 }

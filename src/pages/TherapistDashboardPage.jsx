@@ -1,79 +1,280 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { ThemeToggleButton } from '../components/ThemeToggleButton'
+﻿import { useEffect, useMemo, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { TherapistStatsShell } from '../components/TherapistStatsShell'
 import { useAuth } from '../contexts/AuthContext'
+import { apiFetch, extractApiErrorMessage, extractApiPayload } from '../lib/api'
+import { calculateAgeLabel, getGenderLabel, resolveUploadUrl } from '../lib/childUtils'
 
 const sidebarItems = [
-  { id: 'dashboard', label: '대시보드', badge: null, path: '/app' },
-  { id: 'children', label: '담당 학생', badge: '12', path: '/app/children' },
-  { id: 'analysis', label: '학습 분석', badge: null },
-  { id: 'alerts', label: '알림', badge: '2' },
-  { id: 'reports', label: '리포트', badge: null },
-  { id: 'settings', label: '설정', badge: null },
+  { id: 'home', label: '개요', path: '/app' },
+  { id: 'children', label: '아동 관리', path: '/app/children' },
+  { id: 'analysis', label: '통계', path: '/app/analysis' },
+  { id: 'alerts', label: '알림', path: '/app/alerts' },
+  { id: 'settings', label: '설정', path: '/app/settings' },
 ]
 
-const childRows = [
-  { name: '이서준', age: '만 14세', stage: '중등 과정 2단계', score: 42, pattern: '유형 C', lastSession: '오늘', tone: 'mid' },
-  { name: '박도현', age: '만 15세', stage: '중등 과정 3단계', score: 88, pattern: '유형 A', lastSession: '오늘', tone: 'good' },
-  { name: '김민서', age: '만 16세', stage: '고등 준비 1단계', score: 31, pattern: '유형 B', lastSession: '3일 전', tone: 'alert' },
-  { name: '최지우', age: '만 14세', stage: '중등 과정 2단계', score: 67, pattern: '유형 A', lastSession: '어제', tone: 'good' },
-]
+const emotionLabelMap = {
+  happy: '기쁨',
+  sad: '슬픔',
+  angry: '분노',
+  disgust: '혐오',
+  surprise: '놀람',
+  fear: '공포',
+}
 
-const alerts = [
-  { level: 'critical', title: '김민서가 3일 연속 세션에 참여하지 않았어요', body: '치료 중단 가능성이 있어 보호자 연락을 권장합니다.', time: '3시간 전' },
-  { level: 'warning', title: '이서준의 분노 표현 유형이 증가했습니다', body: '정확도 보완과 반응 시간 비교 세션을 추천합니다.', time: '오늘 오전 9:12' },
-  { level: 'ok', title: '박도현의 기쁨-슬픔 변별 정확도가 안정적입니다', body: '주간 표현 지수 88로 다음 단계 진입을 검토할 수 있습니다.', time: '어제' },
-]
+function asNumber(value) {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : null
+}
 
-const emotionStats = [
-  { label: '기쁨', value: 92, state: '안정' },
-  { label: '슬픔', value: 78, state: '안정' },
-  { label: '놀람', value: 66, state: '관찰' },
-  { label: '분노', value: 32, state: '학습 필요' },
-  { label: '두려움', value: 44, state: '관찰' },
-  { label: '싫음', value: 22, state: '학습 필요' },
-]
+function normalizeRate(value) {
+  const n = asNumber(value)
+  if (n == null) return null
+  if (n > 1) return n / 100
+  if (n < 0) return 0
+  return n
+}
 
-function StatCard({ label, value, sub, tone = 'default' }) {
-  const toneClass = tone === 'good' ? 'text-[var(--brand-600)]' : tone === 'alert' ? 'text-rose-600' : tone === 'warn' ? 'text-amber-600' : 'text-slate-950'
+function percent(value) {
+  const n = normalizeRate(value)
+  if (n == null) return '-'
+  return `${Math.round(n * 100)}%`
+}
+
+function fixed(value, digits = 1) {
+  const n = asNumber(value)
+  if (n == null) return '-'
+  return n.toFixed(digits)
+}
+
+function getWilsonInterval(successRate, sessionCount) {
+  const p = normalizeRate(successRate)
+  const n = asNumber(sessionCount)
+  if (p == null || n == null || n <= 0) return { lower: null, upper: null }
+
+  const z = 1.96
+  const denominator = 1 + (z * z) / n
+  const center = (p + (z * z) / (2 * n)) / denominator
+  const margin = (z / denominator) * Math.sqrt((p * (1 - p)) / n + (z * z) / (4 * n * n))
+
+  return {
+    lower: Math.max(0, center - margin),
+    upper: Math.min(1, center + margin),
+  }
+}
+
+function getThreshold(successRate) {
+  const rate = normalizeRate(successRate) || 0
+  if (rate >= 0.8) return { label: '안정적 숙달', tone: 'stable' }
+  if (rate >= 0.6) return { label: '개선 중', tone: 'improving' }
+  return { label: '집중 지도', tone: 'focus' }
+}
+
+function getMasteryTone(value) {
+  const v = normalizeRate(value) || 0
+  if (v >= 0.8) return 'stable'
+  if (v >= 0.6) return 'improving'
+  return 'focus'
+}
+
+function ChildAvatar({ child, large = false }) {
+  const imageUrl = resolveUploadUrl(child?.profileImageUrl)
+  const sizeClass = large ? 'h-12 w-12 rounded-xl' : 'h-10 w-10 rounded-lg'
+
+  if (imageUrl) {
+    return <img alt={child?.name || 'child'} className={`${sizeClass} object-cover`} src={imageUrl} />
+  }
+
+  return <div className={`stats-avatar ${sizeClass}`}>{child?.name?.[0] || '?'}</div>
+}
+
+function MetricChip({ label, value, sub }) {
   return (
-    <article className="rounded-2xl border border-slate-200 bg-white px-5 py-4">
-      <p className="text-[11px] font-semibold text-slate-400">{label}</p>
-      <p className={`mt-2 text-[28px] font-black leading-none tracking-tight ${toneClass}`}>{value}</p>
-      <p className="mt-2 text-xs text-slate-400">{sub}</p>
-    </article>
+    <div className="stats-chip">
+      <p className="stats-chip-label">{label}</p>
+      <p className="stats-chip-value">{value}</p>
+      {sub ? <p className="stats-chip-sub">{sub}</p> : null}
+    </div>
   )
 }
 
-function ScoreBar({ score, tone }) {
-  const barClass = tone === 'good' ? 'bg-[var(--brand-500)]' : tone === 'mid' ? 'bg-amber-500' : 'bg-rose-500'
-  const textClass = tone === 'good' ? 'text-[var(--brand-700)]' : tone === 'mid' ? 'text-amber-700' : 'text-rose-700'
+function EmotionRow({ item }) {
+  const score = normalizeRate(item.successRate)
+  const { lower, upper } = getWilsonInterval(item.successRate, item.sessionCount)
+  const pointLeft = `${Math.max(0, Math.min(100, (score || 0) * 100))}%`
+  const ciLeft = `${Math.max(0, Math.min(100, (lower || 0) * 100))}%`
+  const ciWidth = `${Math.max(2, ((upper || 0) - (lower || 0)) * 100)}%`
+  const status = getThreshold(item.successRate)
+
   return (
-    <div className="flex items-center gap-3">
-      <div className="h-2 w-20 overflow-hidden rounded-full bg-slate-200">
-        <div className={`h-full rounded-full ${barClass}`} style={{ width: `${score}%` }} />
+    <div className="emotion-row">
+      <div className="emotion-label-col">
+        <span className="emotion-dot" />
+        <span className="emotion-name">{emotionLabelMap[item.emotion] || item.emotion}</span>
       </div>
-      <span className={`min-w-8 text-xs font-bold ${textClass}`}>{score}</span>
+
+      <div className="emotion-track-wrap">
+        <div className="emotion-track" />
+        <div className="emotion-ci" style={{ left: ciLeft, width: ciWidth }} />
+        <div className="emotion-point" style={{ left: pointLeft }} />
+      </div>
+
+      <p className="emotion-score">
+        {percent(item.successRate)} <span>{lower != null && upper != null ? `[${percent(lower)}-${percent(upper)}]` : ''}</span>
+      </p>
+
+      <span className={`emotion-status ${status.tone}`}>{status.label}</span>
+
+      <p className="emotion-n">n={asNumber(item.sessionCount) || 0}</p>
     </div>
   )
 }
 
-function AlertCard({ item }) {
-  const styles = { critical: 'border-l-4 border-rose-500 bg-rose-50', warning: 'border-l-4 border-amber-500 bg-amber-50', ok: 'border-l-4 border-[var(--brand-500)] bg-[var(--brand-50)]' }
-  return (
-    <div className={`rounded-xl px-4 py-3 ${styles[item.level]}`}>
-      <p className="font-semibold text-slate-900">{item.title}</p>
-      <p className="mt-1 text-sm leading-6 text-slate-600">{item.body}</p>
-      <p className="mt-2 text-[11px] text-slate-400">{item.time}</p>
-    </div>
-  )
+function getActiveNavId(pathname) {
+  if (pathname.startsWith('/app/analysis')) return 'analysis'
+  if (pathname.startsWith('/app/children')) return 'children'
+  if (pathname.startsWith('/app/alerts')) return 'alerts'
+  if (pathname.startsWith('/app/settings')) return 'settings'
+  return 'home'
 }
 
 export function TherapistDashboardPage() {
   const navigate = useNavigate()
-  const { jwtPayload, logout, user } = useAuth()
-  const [activeNav, setActiveNav] = useState('dashboard')
-  const displayName = user?.name || jwtPayload?.name || '치료사님'
+  const location = useLocation()
+  const { accessToken, jwtPayload, logout, user } = useAuth()
+
+  const [children, setChildren] = useState([])
+  const [selectedChildId, setSelectedChildId] = useState(null)
+
+  const [expressionSummary, setExpressionSummary] = useState(null)
+  const [dialogueSummary, setDialogueSummary] = useState([])
+  const [dialogueProgress, setDialogueProgress] = useState(null)
+
+  const [loadingChildren, setLoadingChildren] = useState(true)
+  const [loadingStats, setLoadingStats] = useState(false)
+  const [feedback, setFeedback] = useState('')
+
+  const displayName = user?.name || jwtPayload?.name || '치료사'
+  const activeNavId = getActiveNavId(location.pathname)
+
+  const selectedChild = useMemo(() => children.find((child) => child.childId === selectedChildId) || children[0] || null, [children, selectedChildId])
+
+  const expressionRows = useMemo(() => {
+    const rows = expressionSummary?.emotions || []
+    return rows
+      .map((item) => ({
+        emotion: item.emotion,
+        successRate: item.successRate,
+        sessionCount: item.sessionCount,
+        dataReady: item.dataReady,
+        successRateLevel: item.successRateLevel,
+        fluencyIndex: item.fluencyIndex,
+      }))
+      .filter((item) => item.emotion)
+  }, [expressionSummary])
+
+  const avgSuccess = useMemo(() => {
+    if (!expressionRows.length) return null
+    const total = expressionRows.reduce((sum, row) => sum + (normalizeRate(row.successRate) || 0), 0)
+    return total / expressionRows.length
+  }, [expressionRows])
+
+  const avgEma = useMemo(() => {
+    const valid = dialogueSummary.map((item) => asNumber(item.emaValue)).filter((v) => v != null)
+    if (!valid.length) return null
+    return valid.reduce((sum, v) => sum + v, 0) / valid.length
+  }, [dialogueSummary])
+
+  const avgFluency = useMemo(() => {
+    const values = expressionRows.map((row) => asNumber(row.fluencyIndex)).filter((v) => v != null)
+    if (!values.length) return null
+    return values.reduce((sum, value) => sum + value, 0) / values.length
+  }, [expressionRows])
+
+  const validSessionCount = useMemo(() => {
+    if (!expressionRows.length) return 0
+    return expressionRows.reduce((sum, row) => sum + (asNumber(row.sessionCount) || 0), 0)
+  }, [expressionRows])
+
+  const weekRangeLabel = useMemo(() => {
+    const weeks = (dialogueProgress?.themes || [])
+      .map((item) => asNumber(item.weekNumber))
+      .filter((v) => v != null)
+      .sort((a, b) => a - b)
+
+    if (!weeks.length) return 'Week 01 - 08'
+    return `Week ${String(weeks[0]).padStart(2, '0')} - ${String(weeks[weeks.length - 1]).padStart(2, '0')}`
+  }, [dialogueProgress])
+
+  useEffect(() => {
+    let ignore = false
+
+    async function loadChildren() {
+      if (!accessToken) {
+        setLoadingChildren(false)
+        return
+      }
+
+      try {
+        const response = await apiFetch('/children/accessible', { method: 'GET', token: accessToken })
+        const payload = extractApiPayload(response) || []
+        if (ignore) return
+        setChildren(payload)
+        setSelectedChildId(payload[0]?.childId || null)
+      } catch (error) {
+        if (!ignore) setFeedback(extractApiErrorMessage(error))
+      } finally {
+        if (!ignore) setLoadingChildren(false)
+      }
+    }
+
+    loadChildren()
+    return () => {
+      ignore = true
+    }
+  }, [accessToken])
+
+  useEffect(() => {
+    let ignore = false
+
+    async function loadStats() {
+      if (!accessToken || !selectedChildId) {
+        setExpressionSummary(null)
+        setDialogueSummary([])
+        setDialogueProgress(null)
+        return
+      }
+
+      setLoadingStats(true)
+      try {
+        const [exprRes, dialogRes, progressRes] = await Promise.all([
+          apiFetch(`/therapist/children/${selectedChildId}/expression/summary`, { method: 'GET', token: accessToken }),
+          apiFetch(`/therapist/children/${selectedChildId}/dialogue/summary`, { method: 'GET', token: accessToken }),
+          apiFetch(`/therapist/children/${selectedChildId}/dialogue/progress`, { method: 'GET', token: accessToken }),
+        ])
+
+        if (ignore) return
+        setExpressionSummary(extractApiPayload(exprRes))
+        setDialogueSummary(extractApiPayload(dialogRes) || [])
+        setDialogueProgress(extractApiPayload(progressRes))
+        setFeedback('')
+      } catch (error) {
+        if (!ignore) {
+          setExpressionSummary(null)
+          setDialogueSummary([])
+          setDialogueProgress(null)
+          setFeedback(extractApiErrorMessage(error))
+        }
+      } finally {
+        if (!ignore) setLoadingStats(false)
+      }
+    }
+
+    loadStats()
+    return () => {
+      ignore = true
+    }
+  }, [accessToken, selectedChildId])
 
   async function handleLogout() {
     await logout()
@@ -81,164 +282,192 @@ export function TherapistDashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--app-canvas)] text-slate-900">
-      <div className="grid min-h-screen grid-cols-1 grid-rows-[56px_1fr] lg:grid-cols-[220px_1fr] lg:grid-rows-[56px_1fr]">
-        <header className="col-span-full flex items-center gap-5 border-b border-slate-200 bg-white px-6">
-          <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--brand-500)] text-xs font-black text-white">ME</div>
-            <span className="text-[15px] font-bold tracking-tight text-slate-950">My Expression Friend</span>
-          </div>
-          <div className="hidden h-5 w-px bg-slate-200 sm:block" />
-          <span className="hidden text-xs text-slate-400 sm:inline">치료사 대시보드</span>
-          <div className="ml-auto flex items-center gap-3">
-            <div className="text-right">
-              <p className="text-xs text-slate-400">Signed in as</p>
-              <p className="text-sm font-semibold text-slate-700">{displayName}</p>
-            </div>
-            <button className="rounded-xl bg-[var(--brand-500)] px-4 py-2 text-sm font-semibold text-white" onClick={handleLogout} type="button">
-              로그아웃
-            </button>
-          </div>
-        </header>
+    <TherapistStatsShell
+      activeId={activeNavId}
+      subtitle={`아동 ${selectedChild?.name || '-'} · 기간 ${weekRangeLabel} · 코호트 ${children.length}명`}
+      title="통계 · 진행 경과 및 임상 지표"
+    >
 
-        <aside className="hidden border-r border-slate-200 bg-white px-3 py-5 lg:flex lg:flex-col">
-          <div className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">메인</div>
-          <div className="space-y-1">
-            {sidebarItems.map((item) => (
+        {feedback ? <div className="stats-feedback">{feedback}</div> : null}
+
+        <section className="stats-child-summary">
+          <div className="child-card-left">
+            <ChildAvatar child={selectedChild} large />
+            <div>
+              <p className="child-name">{selectedChild?.name || '선택된 아동 없음'}</p>
+              <p className="child-meta">
+                child_id: {selectedChild?.childId || '-'} · {calculateAgeLabel(selectedChild?.birthDate)} · {getGenderLabel(selectedChild?.gender)}
+              </p>
+            </div>
+          </div>
+
+          <div className="child-metrics">
+            <MetricChip label="표정 성공률 평균" value={avgSuccess == null ? '-' : percent(avgSuccess)} sub="Wilson CI 기준" />
+            <MetricChip label="EMA 평균" value={avgEma == null ? '-' : fixed(avgEma, 2)} sub="주요 4개 테마" />
+            <MetricChip label="유효 세션 수" value={String(validSessionCount)} sub="감정별 집계 합산" />
+          </div>
+        </section>
+
+        {loadingChildren || loadingStats ? <div className="stats-loading">통계 데이터를 불러오는 중입니다...</div> : null}
+
+        {!loadingStats && !!selectedChild ? (
+          <>
+            <section className="stats-section-head">
+              <p>SECTION 01 / 표정 짓기</p>
+              <h2>표정 짓기 · Expression</h2>
+            </section>
+
+            <section className="stats-grid">
+              <article className="stats-panel">
+                <div className="panel-head">
+                  <p>1-1 감정별 성공률 · WITH WILSON 95% CI</p>
+                  <span>n = {validSessionCount}</span>
+                </div>
+
+                <div className="emotion-table">
+                  {expressionRows.length ? (
+                    expressionRows.map((row) => <EmotionRow item={row} key={`emotion-${row.emotion}`} />)
+                  ) : (
+                    <p className="empty-message">표정 통계 데이터가 아직 없습니다.</p>
+                  )}
+                </div>
+
+                <div className="legend-row">
+                  <span>■ Point estimate</span>
+                  <span>■ 95% CI band</span>
+                  <span>■ 0-100% axis</span>
+                </div>
+              </article>
+
+              <article className="stats-panel threshold-panel">
+                <p className="threshold-title">1-1 THRESHOLD</p>
+                <h3>임계값 · 판정 체계</h3>
+
+                <ul>
+                  <li><span className="dot stable" /> 안정적 숙달 <strong>≥ 80%</strong></li>
+                  <li><span className="dot improving" /> 개선 중 <strong>60-79%</strong></li>
+                  <li><span className="dot focus" /> 집중 지도 <strong>&lt; 60%</strong></li>
+                </ul>
+
+                <div className="threshold-note">CI 해석: n이 작으면 구간 폭이 넓어집니다. 최소 3세션 이상에서 추세 판독을 권장합니다.</div>
+              </article>
+            </section>
+
+            <section className="stats-grid bottom-grid">
+              <article className="stats-panel mini-panel">
+                <div className="panel-head">
+                  <p>1-2 유창성 지수 (첫 시도 기반)</p>
+                  <span>v2.1</span>
+                </div>
+                <div className="big-value">{avgFluency != null ? fixed(avgFluency, 1) : '-'}</div>
+                <p className="sub">감정별 fluencyIndex 평균 · 치료사 통계 기준</p>
+              </article>
+
+              <article className="stats-panel mini-panel">
+                <div className="panel-head">
+                  <p>1-3 학습 곡선</p>
+                  <span>참고 지표</span>
+                </div>
+                <div className="mini-trends">
+                  {(dialogueSummary || []).slice(0, 4).map((item) => (
+                    <div className="trend-row" key={`trend-${item.theme}`}>
+                      <span>{item.theme}</span>
+                      <div className="trend-line">
+                        <div className="trend-fill" style={{ width: `${Math.max(5, (asNumber(item.emaValue) || 0) * 100)}%` }} />
+                      </div>
+                      <strong>{item.emaValue == null ? '-' : fixed(item.emaValue, 2)}</strong>
+                    </div>
+                  ))}
+                </div>
+              </article>
+            </section>
+
+            <section className="stats-section-head">
+              <p>SECTION 02 / 선택지형 대화</p>
+              <h2>선택지형 대화 · 전략 숙달 및 EMA</h2>
+            </section>
+
+            <section className="stats-grid">
+              <article className="stats-panel">
+                <div className="panel-head">
+                  <p>2-1 전략 숙달/품질 분포/EMA</p>
+                  <span>themes = {dialogueSummary.length}</span>
+                </div>
+                <div className="mini-trends">
+                  {dialogueSummary.length ? (
+                    dialogueSummary.map((item) => {
+                      const masteryTone = getMasteryTone(item.strategyMasteryIndex)
+                      const q0 = percent(item.qualityDistribution?.score0Rate)
+                      const q1 = percent(item.qualityDistribution?.score1Rate)
+                      const q2 = percent(item.qualityDistribution?.score2Rate)
+                      return (
+                        <div className="stats-panel" key={`dialogue-${item.theme}`}>
+                          <div className="panel-head">
+                            <p>{item.theme}</p>
+                            <span className={`emotion-status ${masteryTone}`}>
+                              {item.masteryJudgmentForParent || '진행 중'}
+                            </span>
+                          </div>
+                          <div className="trend-row">
+                            <span>숙달도</span>
+                            <div className="trend-line">
+                              <div className="trend-fill" style={{ width: `${Math.max(5, (normalizeRate(item.strategyMasteryIndex) || 0) * 100)}%` }} />
+                            </div>
+                            <strong>{percent(item.strategyMasteryIndex)}</strong>
+                          </div>
+                          <div className="trend-row">
+                            <span>EMA</span>
+                            <div className="trend-line">
+                              <div className="trend-fill" style={{ width: `${Math.max(5, (asNumber(item.emaValue) || 0) * 100)}%` }} />
+                            </div>
+                            <strong>{item.emaValue == null ? '-' : fixed(item.emaValue, 2)}</strong>
+                          </div>
+                          <p className="sub">
+                            품질분포 0/1/2: {q0} / {q1} / {q2} · α {item.emaAlpha == null ? '-' : fixed(item.emaAlpha, 2)} ·
+                            일관성 {item.consistencyStd == null ? '-' : fixed(item.consistencyStd, 2)} · 재시도감소율{' '}
+                            {item.retryReductionRate == null ? '-' : percent(item.retryReductionRate)}
+                          </p>
+                        </div>
+                      )
+                    })
+                  ) : (
+                    <p className="empty-message">대화 통계 데이터가 아직 없습니다.</p>
+                  )}
+                </div>
+              </article>
+
+              <article className="stats-panel threshold-panel">
+                <p className="threshold-title">2-2 주차별 진행</p>
+                <h3>주차별 진행도</h3>
+                <ul>
+                  {(dialogueProgress?.themes || []).slice(0, 8).map((item) => (
+                    <li key={`week-${item.weekNumber}-${item.theme}`}>
+                      <span className={`dot ${item.status === 'COMPLETED' ? 'stable' : item.status === 'IN_PROGRESS' ? 'improving' : 'focus'}`} />
+                      W{item.weekNumber} {item.theme}
+                      <strong>{item.statusLabelTherapist || item.status}</strong>
+                    </li>
+                  ))}
+                </ul>
+              </article>
+            </section>
+          </>
+        ) : null}
+
+        <footer className="stats-footer">
+          <div className="child-selector">
+            {children.map((child) => (
               <button
-                key={item.id}
-                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition ${
-                  activeNav === item.id ? 'bg-[var(--brand-50)] text-[var(--brand-700)]' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
-                }`}
-                onClick={() => {
-                  setActiveNav(item.id)
-                  if (item.path) navigate(item.path)
-                }}
+                className={`child-pill ${selectedChildId === child.childId ? 'active' : ''}`}
+                key={child.childId}
+                onClick={() => setSelectedChildId(child.childId)}
                 type="button"
               >
-                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-[11px] font-bold">{item.label[0]}</span>
-                <span>{item.label}</span>
-                {item.badge ? <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1.5 text-[10px] font-bold text-white">{item.badge}</span> : null}
+                {child.name}
               </button>
             ))}
           </div>
 
-          <div className="mt-auto pt-6">
-            <ThemeToggleButton />
-          </div>
-        </aside>
-
-        <main className="overflow-y-auto px-5 py-6 md:px-6">
-          <div className="flex flex-col gap-3 md:flex-row md:items-end">
-            <div>
-              <h1 className="text-[24px] font-black tracking-tight text-slate-950">오늘의 치료 현황</h1>
-              <p className="mt-1 text-sm text-slate-400">담당 학생의 세션 흐름과 즉시 개입이 필요한 신호를 확인해 보세요.</p>
-            </div>
-            <div className="md:ml-auto flex gap-2">
-              <button className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700" type="button">리포트 다운로드</button>
-              <button className="rounded-xl bg-[var(--brand-500)] px-4 py-2 text-sm font-medium text-white" type="button">+ 메모 작성</button>
-            </div>
-          </div>
-
-          <section className="mt-5 grid gap-3 xl:grid-cols-4">
-            <StatCard label="담당 학생" sub="활성 치료 진행 중" tone="good" value="12명" />
-            <StatCard label="평균 표현 지수" sub="지난주 54 대비 상승" tone="good" value="62점" />
-            <StatCard label="즉시 확인 필요" sub="3일 미접속 학생 포함" tone="alert" value="2명" />
-            <StatCard label="이번 주 세션 완료" sub="11/12명 진행" value="87%" />
-          </section>
-
-          <section className="mt-4 grid gap-4 xl:grid-cols-[1fr_340px]">
-            <article className="rounded-[1.2rem] border border-slate-200 bg-white p-5">
-              <div className="mb-4 flex items-center justify-between">
-                <div className="text-sm font-semibold text-slate-900">담당 학생 목록</div>
-                <div className="flex gap-2">
-                  <button className="rounded-full bg-[var(--brand-50)] px-3 py-1.5 text-xs font-semibold text-[var(--brand-700)]" type="button">전체</button>
-                  <button className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-500" type="button">알림만</button>
-                </div>
-              </div>
-
-              <div className="overflow-hidden rounded-xl border border-slate-200">
-                <div className="grid grid-cols-[1.2fr_1fr_1fr_1fr_0.8fr] gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-400">
-                  <span>학생</span>
-                  <span>단계</span>
-                  <span>표현 지수</span>
-                  <span>학습 유형</span>
-                  <span>마지막 세션</span>
-                </div>
-                <div>
-                  {childRows.map((child) => (
-                    <div key={child.name} className="grid grid-cols-[1.2fr_1fr_1fr_1fr_0.8fr] items-center gap-3 border-b border-slate-100 px-4 py-4 last:border-b-0 hover:bg-slate-50">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--brand-50)] text-sm font-bold text-[var(--brand-700)]">{child.name[0]}</div>
-                        <div>
-                          <p className="text-sm font-semibold text-slate-900">{child.name}</p>
-                          <p className="text-xs text-slate-400">{child.age}</p>
-                        </div>
-                      </div>
-                      <span className="text-sm text-slate-600">{child.stage}</span>
-                      <ScoreBar score={child.score} tone={child.tone} />
-                      <span className="inline-flex w-fit rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">{child.pattern}</span>
-                      <span className="text-sm text-slate-400">{child.lastSession}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </article>
-
-            <article className="rounded-[1.2rem] border border-slate-200 bg-white p-5">
-              <div className="mb-4 flex items-center justify-between">
-                <div className="text-sm font-semibold text-slate-900">알림 및 즉시 개입</div>
-                <button className="text-xs font-semibold text-[var(--brand-600)]" type="button">전체 보기</button>
-              </div>
-              <div className="space-y-3">
-                {alerts.map((item) => <AlertCard item={item} key={item.title} />)}
-              </div>
-            </article>
-          </section>
-
-          <div className="mt-6 flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">
-            <span>Learning Analytics</span>
-            <div className="h-px flex-1 bg-slate-200" />
-          </div>
-
-          <section className="mt-4 grid gap-4 xl:grid-cols-3">
-            <article className="rounded-[1.2rem] border border-slate-200 bg-white p-5">
-              <div className="mb-4 text-sm font-semibold text-slate-900">감정별 표현 지수</div>
-              <div className="space-y-3">
-                {emotionStats.map((item) => (
-                  <div className="flex items-center gap-3" key={item.label}>
-                    <span className="w-14 text-right text-xs text-slate-500">{item.label}</span>
-                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-200">
-                      <div className="h-full rounded-full bg-[var(--brand-500)]" style={{ width: `${item.value}%` }} />
-                    </div>
-                    <span className="w-8 text-xs font-bold text-[var(--brand-700)]">{item.value}</span>
-                    <span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${item.state === '안정' ? 'bg-[var(--brand-50)] text-[var(--brand-700)]' : item.state === '관찰' ? 'bg-amber-50 text-amber-700' : 'bg-rose-50 text-rose-700'}`}>
-                      {item.state}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </article>
-
-            <article className="rounded-[1.2rem] border border-slate-200 bg-white p-5">
-              <div className="mb-4 text-sm font-semibold text-slate-900">주간 메모</div>
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-7 text-slate-600">
-                <p className="mb-2 text-[11px] text-slate-400">2026.03.23 작성 · 치료사 공개</p>
-                기쁨과 슬픔 인식은 안정적으로 습득 중이며 표정과 방향 단서를 사용할 때 반응 속도가 좋아집니다. 다만 분노와 싫음 카드는 혼동이 있어 비교 세션과 보호자 가정 연계가 필요합니다.
-              </div>
-            </article>
-
-            <article className="rounded-[1.2rem] border border-slate-200 bg-white p-5">
-              <div className="mb-4 text-sm font-semibold text-slate-900">자극 유형별 정확도</div>
-              <div className="space-y-3">
-                <div className="flex items-center gap-3"><span className="w-16 text-xs text-slate-500">만화</span><div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full bg-[var(--brand-500)]" style={{ width: '84%' }} /></div><span className="text-xs font-bold text-[var(--brand-700)]">84%</span></div>
-                <div className="flex items-center gap-3"><span className="w-16 text-xs text-slate-500">일러스트</span><div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full bg-amber-500" style={{ width: '61%' }} /></div><span className="text-xs font-bold text-amber-700">61%</span></div>
-                <div className="flex items-center gap-3"><span className="w-16 text-xs text-slate-500">실사 사진</span><div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full bg-rose-500" style={{ width: '38%' }} /></div><span className="text-xs font-bold text-rose-700">38%</span></div>
-              </div>
-            </article>
-          </section>
-        </main>
-      </div>
-    </div>
+        </footer>
+    </TherapistStatsShell>
   )
 }

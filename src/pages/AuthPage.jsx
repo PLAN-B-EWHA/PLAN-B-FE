@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { apiFetch, extractApiErrorMessage } from '../lib/api'
@@ -21,7 +21,7 @@ function Field({ label, name, type = 'text', value, onChange, placeholder }) {
     <label className="block space-y-2">
       <span className="text-[13px] font-medium text-slate-800">{label}</span>
       <input
-        className="w-full rounded-full border border-[rgba(3,150,166,0.18)] bg-white px-5 py-3.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[var(--brand-500)] focus:ring-4 focus:ring-[rgba(3,150,166,0.12)]"
+        className="w-full rounded-full border border-slate-200 bg-white px-5 py-3.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[var(--brand-500)]"
         name={name}
         onChange={onChange}
         placeholder={placeholder}
@@ -34,28 +34,24 @@ function Field({ label, name, type = 'text', value, onChange, placeholder }) {
 
 function AuthTabs({ tab, setTab }) {
   return (
-    <div className="mx-auto grid w-full max-w-[220px] grid-cols-2 rounded-full bg-[rgba(3,150,166,0.10)] p-1">
+    <div className="mx-auto grid w-full max-w-[220px] grid-cols-2 rounded-full bg-[var(--brand-50)] p-1">
       <button
         className={`rounded-full px-4 py-2.5 text-xs font-semibold transition ${
-          tab === 'login'
-            ? 'bg-[var(--brand-500)] text-white shadow-[0_10px_20px_rgba(3,150,166,0.22)]'
-            : 'text-[var(--brand-700)]'
+          tab === 'login' ? 'bg-[var(--brand-500)] text-white' : 'text-[var(--brand-700)]'
         }`}
         onClick={() => setTab('login')}
         type="button"
       >
-        Login
+        로그인
       </button>
       <button
         className={`rounded-full px-4 py-2.5 text-xs font-semibold transition ${
-          tab === 'register'
-            ? 'bg-[var(--brand-500)] text-white shadow-[0_10px_20px_rgba(3,150,166,0.22)]'
-            : 'text-[var(--brand-700)]'
+          tab === 'register' ? 'bg-[var(--brand-500)] text-white' : 'text-[var(--brand-700)]'
         }`}
         onClick={() => setTab('register')}
         type="button"
       >
-        Register
+        회원가입
       </button>
     </div>
   )
@@ -63,8 +59,8 @@ function AuthTabs({ tab, setTab }) {
 
 function VisualPanel() {
   return (
-    <section className="relative hidden overflow-hidden rounded-[1.8rem] lg:block">
-      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(3,150,166,0.10)_0%,rgba(50,103,137,0.16)_100%),linear-gradient(135deg,#d8eef0_0%,#9cd3d8_42%,#0b698b_100%)]" />
+    <section className="app-hero relative hidden overflow-hidden rounded-[1.8rem] lg:block">
+      <div className="absolute inset-0 bg-[linear-gradient(135deg,var(--brand-100)_0%,var(--brand-200)_38%,var(--brand-500)_100%)]" />
       <div className="absolute inset-0 opacity-20 [background-image:radial-gradient(rgba(255,255,255,0.9)_0.8px,transparent_0.8px)] [background-size:15px_15px]" />
       <div className="absolute left-[18%] top-[18%] h-[48%] w-[28%] rounded-t-[10rem] rounded-b-[2rem] border border-white/20 bg-[rgba(255,255,255,0.18)] shadow-[0_30px_80px_rgba(15,23,42,0.14)] backdrop-blur-[2px]" />
       <div className="absolute left-[35%] top-[28%] h-[42%] w-[18%] rounded-[1rem] border border-white/18 bg-[rgba(255,255,255,0.14)] backdrop-blur-[2px]" />
@@ -73,11 +69,13 @@ function VisualPanel() {
 
       <div className="absolute bottom-12 left-10 right-10 text-white">
         <h1 className="text-[2.6rem] font-black leading-[1.05] tracking-tight">
-          학생의 감정과 표현을
+          나의 표정친구:
           <br />
-          더 깊이 이해해요
+          감정과 표현을
+          <br />
+          더 정확히 이해해요
         </h1>
-        <p className="mt-3 text-xl font-medium text-slate-100">청소년 표현 지원 플랫폼</p>
+        <p className="mt-3 text-xl font-medium text-slate-100">치료소통 통계 플랫폼</p>
       </div>
     </section>
   )
@@ -97,9 +95,7 @@ export function AuthPage() {
 
   useEffect(() => {
     const rememberedEmail = window.localStorage.getItem(REMEMBERED_EMAIL_KEY)
-    if (!rememberedEmail) {
-      return
-    }
+    if (!rememberedEmail) return
 
     setRememberEmail(true)
     setLoginForm((current) => ({ ...current, email: rememberedEmail }))
@@ -176,10 +172,7 @@ export function AuthPage() {
       await register(registerForm)
       setRegisterForm(registerInitialState)
       setEmailCheck(null)
-      setFeedback({
-        type: 'success',
-        message: '회원가입이 완료되었습니다. 승인 이후 학생 기록과 메모 기능을 사용할 수 있습니다.',
-      })
+      setFeedback({ type: 'success', message: '회원가입이 완료되었습니다. 로그인해 주세요.' })
       setTab('login')
       setLoginForm((current) => ({ ...current, email: registerForm.email }))
     } catch (error) {
@@ -191,7 +184,7 @@ export function AuthPage() {
 
   return (
     <div className="min-h-screen bg-[var(--app-canvas)] px-3 py-3 text-slate-900 md:px-5 md:py-5">
-      <main className="mx-auto grid min-h-[calc(100vh-1.5rem)] max-w-[1580px] gap-5 bg-white p-5 shadow-[0_20px_60px_rgba(15,23,42,0.06)] lg:grid-cols-[1.08fr_0.92fr]">
+      <main className="app-card mx-auto grid min-h-[calc(100vh-1.5rem)] max-w-[1580px] gap-5 p-5 lg:grid-cols-[1.08fr_0.92fr]">
         <VisualPanel />
 
         <section className="flex min-h-[760px] flex-col px-4 py-3 md:px-8 lg:px-10">
@@ -209,7 +202,7 @@ export function AuthPage() {
                 <p className="mx-auto max-w-[360px] text-sm leading-6 text-slate-500">
                   {tab === 'login'
                     ? '로그인 후 학생 기록, 치료 메모, 권한 관리 화면으로 바로 이동할 수 있습니다.'
-                    : '이메일과 이름을 입력하고 보호자 계정을 만든 뒤 서비스를 시작해 보세요.'}
+                    : '이메일과 이름을 입력하고 계정을 생성해 서비스를 시작해 보세요.'}
                 </p>
               </div>
             </div>
@@ -259,7 +252,7 @@ export function AuthPage() {
                   </div>
 
                   <button
-                    className="mx-auto mt-8 block w-full max-w-[170px] rounded-full bg-[var(--brand-500)] px-4 py-3.5 text-sm font-semibold text-white shadow-[0_16px_36px_rgba(15,23,42,0.12)] transition hover:bg-[var(--brand-600)] disabled:cursor-not-allowed disabled:bg-slate-400"
+                    className="mx-auto mt-8 block w-full max-w-[170px] rounded-full bg-[var(--brand-500)] px-4 py-3.5 text-sm font-semibold text-white transition hover:bg-[var(--brand-600)] disabled:cursor-not-allowed disabled:bg-slate-400"
                     disabled={submitting}
                     type="submit"
                   >
@@ -302,7 +295,7 @@ export function AuthPage() {
 
                   <div className="flex justify-center">
                     <button
-                      className="rounded-full border border-[rgba(3,150,166,0.20)] bg-white px-4 py-2.5 text-xs font-semibold text-[var(--brand-700)] transition hover:bg-[var(--brand-50)] disabled:cursor-not-allowed disabled:opacity-60"
+                      className="rounded-full border border-[var(--brand-200)] bg-white px-4 py-2.5 text-xs font-semibold text-[var(--brand-700)] transition hover:bg-[var(--brand-50)] disabled:cursor-not-allowed disabled:opacity-60"
                       disabled={submitting}
                       onClick={handleCheckEmail}
                       type="button"
@@ -312,7 +305,7 @@ export function AuthPage() {
                   </div>
 
                   <button
-                    className="mx-auto mt-6 block w-full max-w-[170px] rounded-full bg-[var(--brand-500)] px-4 py-3.5 text-sm font-semibold text-white shadow-[0_16px_36px_rgba(15,23,42,0.12)] transition hover:bg-[var(--brand-600)] disabled:cursor-not-allowed disabled:bg-slate-400"
+                    className="mx-auto mt-6 block w-full max-w-[170px] rounded-full bg-[var(--brand-500)] px-4 py-3.5 text-sm font-semibold text-white transition hover:bg-[var(--brand-600)] disabled:cursor-not-allowed disabled:bg-slate-400"
                     disabled={submitting}
                     type="submit"
                   >
