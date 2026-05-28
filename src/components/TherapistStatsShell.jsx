@@ -25,11 +25,16 @@ export function TherapistStatsShell({ activeId, title, subtitle, children }) {
 
   return (
     <div className="stats-root">
+      <header className="stats-app-header">
+        <p className="stats-app-brand">My Expression Friend</p>
+        <div className="stats-app-actions">
+          <ThemeToggleButton />
+        </div>
+      </header>
+
       <aside className="stats-sidebar">
         <div>
-          <div className="stats-brand">
-            <p className="stats-brand-title">My Expression Friend</p>
-          </div>
+          <p className="stats-sidebar-title">THERAPIST</p>
 
           <nav className="stats-nav">
             <p>메뉴</p>
@@ -65,12 +70,8 @@ export function TherapistStatsShell({ activeId, title, subtitle, children }) {
       <main className="stats-main">
         <header className="stats-topbar">
           <div>
-            <p className="stats-eyebrow">치료사 대시보드</p>
             <h1>{title}</h1>
             <p>{subtitle}</p>
-          </div>
-          <div className="stats-topbar-user">
-            <ThemeToggleButton />
           </div>
         </header>
 

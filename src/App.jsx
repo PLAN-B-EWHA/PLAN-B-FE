@@ -30,6 +30,7 @@ function App() {
             <Route path="/app/admin/rag" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
             <Route path="/app/admin/rag-sources" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
             <Route path="/app/admin/scenario-batch" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+            <Route path="/app/admin/scenario-review" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
             <Route path="/app/settings" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
             <Route path="/app/alerts" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
             <Route path="/app/children" element={<ProtectedRoute><RoleBasedChildPage /></ProtectedRoute>} />

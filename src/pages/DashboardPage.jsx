@@ -2,6 +2,7 @@
 import { AdminRagDebugPage } from './AdminRagDebugPage'
 import { AdminRagSourcePage } from './AdminRagSourcePage'
 import { AdminScenarioBatchPage } from './AdminScenarioBatchPage'
+import { AdminScenarioReviewPage } from './AdminScenarioReviewPage'
 import { AdminUserManagementPage } from './AdminUserManagementPage'
 import { ParentDashboardPage } from './ParentDashboardPage'
 import { ParentHomePage } from './ParentHomePage'
@@ -25,11 +26,13 @@ export function DashboardPage() {
   const isSettingsPage = location.pathname.startsWith('/app/settings')
   const isAdminRagSourcePage = location.pathname.startsWith('/app/admin/rag-sources')
   const isAdminScenarioBatchPage = location.pathname.startsWith('/app/admin/scenario-batch')
+  const isAdminScenarioReviewPage = location.pathname.startsWith('/app/admin/scenario-review')
   const isAdminRagPage = location.pathname.startsWith('/app/admin/rag')
   const isAdminUsersPage = location.pathname.startsWith('/app/admin/users')
 
   if (roles.includes('ADMIN')) {
     if (isAdminScenarioBatchPage) return <AdminScenarioBatchPage />
+    if (isAdminScenarioReviewPage) return <AdminScenarioReviewPage />
     if (isAdminRagSourcePage) return <AdminRagSourcePage />
     if (isAdminRagPage) return <AdminRagDebugPage />
     if (isAdminUsersPage || location.pathname === '/app') return <AdminUserManagementPage />

@@ -46,11 +46,16 @@ export function ParentShell({ children, selectedChild, childCount = 0, heading, 
 
   return (
     <div className="stats-root">
+      <header className="stats-app-header">
+        <p className="stats-app-brand">My Expression Friend</p>
+        <div className="stats-app-actions">
+          <ThemeToggleButton />
+        </div>
+      </header>
+
       <aside className="stats-sidebar">
         <div>
-          <div className="stats-brand">
-            <p className="stats-brand-title">My Expression Friend</p>
-          </div>
+          <p className="stats-sidebar-title">PARENT</p>
 
           <nav className="stats-nav">
             <p>메뉴</p>
@@ -89,12 +94,8 @@ export function ParentShell({ children, selectedChild, childCount = 0, heading, 
       <main className="stats-main">
         <header className="stats-topbar">
           <div>
-            <p className="stats-eyebrow">보호자 대시보드</p>
             <h1>{heading || '개요'}</h1>
             <p>{subheading || '자녀 진행 상황을 확인합니다.'}</p>
-          </div>
-          <div className="stats-topbar-user">
-            <ThemeToggleButton />
           </div>
         </header>
 

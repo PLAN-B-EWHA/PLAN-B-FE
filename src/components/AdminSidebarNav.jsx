@@ -5,6 +5,7 @@ const items = [
   { id: 'rag-debug', label: 'RAG 디버그 생성', path: '/app/admin/rag' },
   { id: 'rag-source', label: 'RAG 자료 등록', path: '/app/admin/rag-sources' },
   { id: 'scenario-batch', label: '배치 시나리오 생성', path: '/app/admin/scenario-batch' },
+  { id: 'scenario-review', label: '시나리오 검수', path: '/app/admin/scenario-review' },
 ]
 
 export function AdminSidebarNav({ activeId }) {
