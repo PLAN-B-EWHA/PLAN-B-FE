@@ -5,30 +5,59 @@ import { useAuth } from '../contexts/AuthContext'
 import { apiFetch, extractApiErrorMessage, extractApiPayload } from '../lib/api'
 import { calculateAgeLabel } from '../lib/childUtils'
 
+// ─── 설정 가능한 알림 (GET /notifications/preferences 반환 타입) ───
+// 백엔드 NotificationPreferenceType: COMMENT_ADDED | WEEKLY_SUMMARY | CHILD_INACTIVE
+// COMMENT_ADDED는 치료사 메모 발행 기능이 미구현이므로 UI에서 노출하지 않음
 const typeMeta = {
-  COMMENT_ADDED: {
-    title: '치료사 메모 발행 알림',
-    description: '치료사가 메모를 발행하면 즉시 알림을 받습니다.',
-    roles: ['PARENT'],
-  },
   WEEKLY_SUMMARY: {
-    title: '주간 요약 알림',
-    description: '매주 월요일 오전 9시에 주간 요약 알림을 받습니다.',
+    title: '주간 성장 요약 알림',
+    description: '매주 월요일 오전 9시, 주보호자에게 아이의 주간 성장 요약이 발송됩니다.',
     roles: ['PARENT'],
   },
   CHILD_INACTIVE: {
     title: '아동 미접속 알림',
-    description: '설정한 일수 이상 게임 기록이 없으면 알림을 받습니다.',
+    description: '설정한 일수 이상 아동의 게임 기록이 없으면 알림을 받습니다. (기본 7일)',
     roles: ['THERAPIST'],
     hasExtraValue: true,
     extraLabel: '미접속 기준 일수',
   },
 }
 
+// ─── 자동 발송 알림 (설정 불가 / 조건 충족 시 자동 발송) ───
+// PARENT: REPORT_GENERATED, HOMEWORK_REVIEWED, HOMEWORK_EXPIRED
+// THERAPIST: HOMEWORK_SUBMITTED
+const autoNotifyMeta = {
+  PARENT: [
+    {
+      type: 'REPORT_GENERATED',
+      title: '리포트 발행 알림',
+      description: '치료사가 리포트를 발행하면 리포트 조회 권한이 있는 보호자에게 자동 발송됩니다.',
+    },
+    {
+      type: 'HOMEWORK_REVIEWED',
+      title: '숙제 검토 완료 알림',
+      description: '제출한 오프라인 숙제를 치료사가 검토 완료하면 제출한 보호자에게 자동 발송됩니다.',
+    },
+    {
+      type: 'HOMEWORK_EXPIRED',
+      title: '숙제 기한 만료 알림',
+      description: '기한 내 미제출 숙제가 매일 자정 만료 처리될 때 리포트 조회 권한 보호자에게 자동 발송됩니다.',
+    },
+  ],
+  THERAPIST: [
+    {
+      type: 'HOMEWORK_SUBMITTED',
+      title: '숙제 제출 알림',
+      description: '보호자가 오프라인 숙제를 제출하면 해당 아동의 숙제 할당 권한이 있는 치료사에게 자동 발송됩니다.',
+    },
+  ],
+}
+
 function getVisiblePreferences(preferences, roles) {
   return (preferences || []).filter((item) => {
     const meta = typeMeta[item.type]
-    if (!meta?.roles?.length) return true
+    if (!meta) return false  // typeMeta에 없는 타입은 표시 안 함
+    if (!meta.roles?.length) return true
     return meta.roles.some((role) => roles.includes(role))
   })
 }
@@ -192,7 +221,24 @@ function GameChildSelector({ isTherapist, accessToken }) {
   )
 }
 
+function AutoNotifyCard({ meta }) {
+  return (
+    <article className="card card-pad" style={{ opacity: 0.88 }}>
+      <div className="set-head">
+        <div>
+          <h3>{meta.title}</h3>
+          <p className="set-desc">{meta.description}</p>
+        </div>
+        <span className="chip chip-neutral" style={{ flexShrink: 0 }}>자동 발송</span>
+      </div>
+    </article>
+  )
+}
+
 function SettingsContent({ preferences, savingType, feedback, loading, onToggle, onExtraChange, onSave, isTherapist, accessToken }) {
+  const roleKey = isTherapist ? 'THERAPIST' : 'PARENT'
+  const autoItems = autoNotifyMeta[roleKey] || []
+
   return (
     <>
       {feedback ? <div className="stats-feedback">{feedback}</div> : null}
@@ -225,6 +271,22 @@ function SettingsContent({ preferences, savingType, feedback, loading, onToggle,
           ))}
         </section>
       )}
+
+      {autoItems.length > 0 ? (
+        <>
+          <div className="section-head set-wrap" style={{ marginTop: 28 }}>
+            <div>
+              <div className="s-title">자동 발송 알림</div>
+              <p className="sub">아래 알림은 조건 충족 시 자동으로 발송되며 별도 설정이 필요 없습니다.</p>
+            </div>
+          </div>
+          <section className="set-wrap grid gap-4">
+            {autoItems.map((meta) => (
+              <AutoNotifyCard key={meta.type} meta={meta} />
+            ))}
+          </section>
+        </>
+      ) : null}
     </>
   )
 }

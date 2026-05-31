@@ -1,9 +1,18 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ParentShell } from '../components/ParentShell'
 import { useAuth } from '../contexts/AuthContext'
 import { apiFetch, extractApiErrorMessage, extractApiPayload } from '../lib/api'
 import { buildChildFormFromDetail, calculateAgeLabel, defaultChildForm, getGenderLabel, normalizeChildForm, resolveUploadUrl } from '../lib/childUtils'
 import { PinVerifyModal } from '../lib/PinVerifyModal'
+
+function IconCamera({ size = 20 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+      <circle cx="12" cy="13" r="4" />
+    </svg>
+  )
+}
 
 const permissionOptions = [
   { value: 'PLAY_GAME', label: '게임 플레이' },
@@ -45,7 +54,13 @@ function PermissionChips({ selectedValues, onToggle, readOnly = false }) {
   )
 }
 
-function ChildModal({ title, form, saving, feedback, onClose, onChange, onSubmit, submitLabel }) {
+function ChildModal({ title, form, saving, feedback, onClose, onChange, onSubmit, submitLabel, photoFile, onPhotoChange }) {
+  const fileRef = useRef(null)
+  const previewUrl = photoFile
+    ? URL.createObjectURL(photoFile)
+    : resolveUploadUrl(form.profileImageUrl) || ''
+  const initial = form.name?.[0] || '?'
+
   return (
     <div className="overlay">
       <form className="modal child-modal" onSubmit={onSubmit}>
@@ -56,6 +71,32 @@ function ChildModal({ title, form, saving, feedback, onClose, onChange, onSubmit
         </div>
         <div className="modal-body child-form">
           {feedback ? <div className="stats-feedback">{feedback}</div> : null}
+
+          {/* 프로필 사진 */}
+          <div className="modal-avatar-wrap" style={{ gridColumn: '1 / -1' }}>
+            <button
+              className="modal-avatar-btn"
+              onClick={() => fileRef.current?.click()}
+              type="button"
+              title="프로필 사진 변경"
+            >
+              {previewUrl
+                ? <img alt="preview" src={previewUrl} />
+                : <span className="portrait-initial">{initial}</span>}
+              <span className="portrait-overlay">
+                <IconCamera size={18} />
+                <span>사진 선택</span>
+              </span>
+            </button>
+            <input
+              ref={fileRef}
+              accept="image/*"
+              hidden
+              onChange={(e) => onPhotoChange?.(e.target.files?.[0] || null)}
+              type="file"
+            />
+          </div>
+
           <label>
             <span>이름 *</span>
             <input className="input" name="name" onChange={onChange} value={form.name} />
@@ -122,6 +163,11 @@ export function ChildPage() {
   const [createForm, setCreateForm] = useState({ ...defaultChildForm })
   const [editForm, setEditForm] = useState({ ...defaultChildForm })
   const [pinGate, setPinGate] = useState(null)
+  const [createPhotoFile, setCreatePhotoFile] = useState(null)
+  const [editPhotoFile, setEditPhotoFile] = useState(null)
+  const [photoUploading, setPhotoUploading] = useState(false)
+  const [photoCacheBuster, setPhotoCacheBuster] = useState(Date.now())
+  const portraitFileRef = useRef(null)
 
   const selectedChild = useMemo(
     () => children.find((child) => child.childId === selectedChildId) || children[0] || null,
@@ -139,6 +185,18 @@ export function ChildPage() {
     setChildren(payload)
     setSelectedChildId(targetChildId || payload[0]?.childId || null)
     return payload
+  }
+
+  async function uploadPhoto(childId, file) {
+    if (!file || !childId) return
+    const formData = new FormData()
+    formData.append('file', file)
+    try {
+      await apiFetch(`/children/${childId}/profile/image`, { method: 'POST', token: accessToken, body: formData })
+    } catch (error) {
+      // 업로드 실패는 조용히 처리 (메인 저장은 이미 성공)
+      console.warn('프로필 사진 업로드 실패:', extractApiErrorMessage(error))
+    }
   }
 
   async function refreshChildDetail(childId) {
@@ -230,9 +288,11 @@ export function ChildPage() {
     setSaving(true); setFeedback('')
     try {
       const created = extractApiPayload(await apiFetch('/children', { method: 'POST', token: accessToken, body: normalizeChildForm(createForm) }))
+      if (createPhotoFile) await uploadPhoto(created.childId, createPhotoFile)
       await refreshChildren(created.childId)
       await refreshChildDetail(created.childId)
       setCreateForm({ ...defaultChildForm })
+      setCreatePhotoFile(null)
       setShowCreateModal(false)
     } catch (error) {
       setFeedback(extractApiErrorMessage(error))
@@ -248,14 +308,31 @@ export function ChildPage() {
     setSaving(true); setFeedback('')
     try {
       await apiFetch(`/children/${selectedChild.childId}`, { method: 'PUT', token: accessToken, body: normalizeChildForm(editForm) })
+      if (editPhotoFile) await uploadPhoto(selectedChild.childId, editPhotoFile)
       await refreshChildren(selectedChild.childId)
       const detail = await refreshChildDetail(selectedChild.childId)
       setEditForm(buildChildFormFromDetail(detail))
+      setEditPhotoFile(null)
       setShowEditModal(false)
     } catch (error) {
       setFeedback(extractApiErrorMessage(error))
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handlePortraitFileChange(file) {
+    if (!file || !selectedChild?.childId) return
+    setPhotoUploading(true)
+    try {
+      await uploadPhoto(selectedChild.childId, file)
+      await refreshChildren(selectedChild.childId)
+      await refreshChildDetail(selectedChild.childId)
+      setPhotoCacheBuster(Date.now())
+    } finally {
+      setPhotoUploading(false)
+      // 파일 input 초기화 (같은 파일 재선택 허용)
+      if (portraitFileRef.current) portraitFileRef.current.value = ''
     }
   }
 
@@ -362,7 +439,8 @@ export function ChildPage() {
   }
 
   const detail = selectedChildDetail || selectedChild
-  const imageUrl = resolveUploadUrl(detail?.profileImageUrl)
+  const rawImageUrl = resolveUploadUrl(detail?.profileImageUrl)
+  const imageUrl = rawImageUrl ? `${rawImageUrl}?t=${photoCacheBuster}` : ''
 
   return (
     <ParentShell
@@ -398,21 +476,29 @@ export function ChildPage() {
                 <span className="count">{children.length}명</span>
               </div>
               <div className="child-list">
-                {children.map((child) => (
-                  <button
-                    className={`child-list-item ${selectedChild?.childId === child.childId ? 'active' : ''}`}
-                    key={child.childId}
-                    onClick={() => setSelectedChildId(child.childId)}
-                    type="button"
-                  >
-                    <span className="student-avatar">{child.name?.[0] || '?'}</span>
-                    <span>
-                      <strong>{child.name}</strong>
-                      <small>{calculateAgeLabel(child.birthDate)} · {getGenderLabel(child.gender)}</small>
-                    </span>
-                    {child.pinEnabled ? <b>⌘</b> : null}
-                  </button>
-                ))}
+                {children.map((child) => {
+                  const childImgRaw = resolveUploadUrl(child.profileImageUrl)
+                  const childImg = childImgRaw ? `${childImgRaw}?t=${photoCacheBuster}` : ''
+                  return (
+                    <button
+                      className={`child-list-item ${selectedChild?.childId === child.childId ? 'active' : ''}`}
+                      key={child.childId}
+                      onClick={() => setSelectedChildId(child.childId)}
+                      type="button"
+                    >
+                      <span className="student-avatar" style={{ overflow: 'hidden', padding: 0 }}>
+                        {childImg
+                          ? <img alt={child.name} src={childImg} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                          : child.name?.[0] || '?'}
+                      </span>
+                      <span>
+                        <strong>{child.name}</strong>
+                        <small>{calculateAgeLabel(child.birthDate)} · {getGenderLabel(child.gender)}</small>
+                      </span>
+                      {child.pinEnabled ? <b>⌘</b> : null}
+                    </button>
+                  )
+                })}
               </div>
             </aside>
 
@@ -420,9 +506,26 @@ export function ChildPage() {
               {detailLoading ? <p className="empty-note">상세 정보를 불러오는 중입니다...</p> : (
                 <>
                   <div className="child-profile-head">
-                    <div className="portrait child-portrait">
-                      {imageUrl ? <img alt={detail?.name || 'student'} src={imageUrl} /> : <span>♙</span>}
-                    </div>
+                    <button
+                      className={`child-portrait-btn ${photoUploading ? 'uploading' : ''}`}
+                      onClick={() => portraitFileRef.current?.click()}
+                      title="사진 클릭하여 변경"
+                      type="button"
+                    >
+                      {imageUrl
+                        ? <img alt={detail?.name || 'student'} src={imageUrl} />
+                        : <span className="portrait-initial">{detail?.name?.[0] || '?'}</span>}
+                      <span className="portrait-overlay">
+                        {photoUploading ? <span style={{ fontSize: 11 }}>업로드 중...</span> : <IconCamera size={22} />}
+                      </span>
+                    </button>
+                    <input
+                      ref={portraitFileRef}
+                      accept="image/*"
+                      hidden
+                      onChange={(e) => handlePortraitFileChange(e.target.files?.[0] || null)}
+                      type="file"
+                    />
                     <div>
                       <p className="eyebrow">선택된 학생</p>
                       <h2>{detail?.name || '-'}</h2>
@@ -516,8 +619,10 @@ export function ChildPage() {
           feedback={feedback}
           form={createForm}
           onChange={(event) => handleFormChange(setCreateForm, event)}
-          onClose={() => setShowCreateModal(false)}
+          onClose={() => { setShowCreateModal(false); setCreatePhotoFile(null) }}
+          onPhotoChange={setCreatePhotoFile}
           onSubmit={handleCreateSubmit}
+          photoFile={createPhotoFile}
           saving={saving}
           submitLabel="학생 등록"
           title="학생 등록"
@@ -529,8 +634,10 @@ export function ChildPage() {
           feedback={feedback}
           form={editForm}
           onChange={(event) => handleFormChange(setEditForm, event)}
-          onClose={() => setShowEditModal(false)}
+          onClose={() => { setShowEditModal(false); setEditPhotoFile(null) }}
+          onPhotoChange={setEditPhotoFile}
           onSubmit={handleEditSubmit}
+          photoFile={editPhotoFile}
           saving={saving}
           submitLabel="수정 저장"
           title="학생 정보 수정"

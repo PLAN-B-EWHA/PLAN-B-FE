@@ -1760,20 +1760,24 @@ textarea.input {
 
 .child-management-grid {
   display: grid;
-  grid-template-columns: 360px minmax(0, 1fr);
-  gap: 24px;
-  margin-top: 8px;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 20px;
+  margin-top: 16px;
 }
 
-.child-list-panel,
+.child-list-panel {
+  padding: 20px 20px;
+}
+
 .child-detail-panel {
   min-height: 380px;
-  padding: 24px 28px;
+  padding: 28px 32px;
 }
 
 .child-list {
   display: grid;
-  gap: 10px;
+  gap: 8px;
+  margin-top: 14px;
 }
 
 .child-list-item {
@@ -1782,15 +1786,20 @@ textarea.input {
   align-items: center;
   gap: 12px;
   width: 100%;
-  border: 1px solid var(--line);
-  border-radius: 12px;
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
   background: var(--surface);
-  padding: 14px 16px;
+  padding: 12px 14px;
   text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.child-list-item:hover {
+  border-color: var(--brand-200);
 }
 
 .child-list-item.active {
-  border-color: var(--accent-line);
+  border-color: var(--brand-500);
   background: var(--accent-soft);
 }
 
@@ -1818,24 +1827,27 @@ textarea.input {
   display: flex;
   align-items: center;
   gap: 22px;
-  margin-bottom: 26px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 22px;
 }
 
 .child-profile-head h2 {
   margin: 0 0 4px;
   color: var(--ink);
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 900;
   letter-spacing: 0;
 }
 
 .child-profile-head p:not(.eyebrow) {
-  margin: 0 0 12px;
+  margin: 0 0 10px;
   color: var(--ink-2);
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 600;
 }
 
+/* ── 클릭 가능한 아바타 ── */
 .portrait {
   display: flex;
   align-items: center;
@@ -1844,6 +1856,114 @@ textarea.input {
   background: var(--accent-soft);
   flex-shrink: 0;
   overflow: hidden;
+}
+
+.child-portrait-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  flex-shrink: 0;
+  overflow: hidden;
+  cursor: pointer;
+  border: none;
+  padding: 0;
+}
+
+.child-portrait-btn img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.child-portrait-btn .portrait-initial {
+  color: var(--brand-700);
+  font-size: 34px;
+  font-weight: 900;
+}
+
+.child-portrait-btn .portrait-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.38);
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity 0.18s;
+  color: #fff;
+}
+
+.child-portrait-btn:hover .portrait-overlay {
+  opacity: 1;
+}
+
+.child-portrait-btn.uploading .portrait-overlay {
+  opacity: 1;
+}
+
+/* ── 모달 아바타 업로드 ── */
+.modal-avatar-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0 20px;
+}
+
+.modal-avatar-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  border: 2px dashed var(--brand-200);
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color 0.18s;
+}
+
+.modal-avatar-btn:hover {
+  border-color: var(--brand-500);
+}
+
+.modal-avatar-btn img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.modal-avatar-btn .portrait-initial {
+  color: var(--brand-700);
+  font-size: 28px;
+  font-weight: 900;
+}
+
+.modal-avatar-btn .portrait-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.42);
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity 0.18s;
+  color: #fff;
+  font-size: 10px;
+  gap: 3px;
+}
+
+.modal-avatar-btn:hover .portrait-overlay {
+  opacity: 1;
 }
 
 .child-portrait {
