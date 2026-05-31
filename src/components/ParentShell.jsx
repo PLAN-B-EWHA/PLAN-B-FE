@@ -2,12 +2,14 @@
 import { ThemeToggleButton } from './ThemeToggleButton'
 import { useAuth } from '../contexts/AuthContext'
 import { calculateAgeLabel, resolveUploadUrl } from '../lib/childUtils'
+import { SidebarNavIcon } from './SidebarNavIcon'
 
 const navItems = [
   { id: 'home', label: '개요', path: '/app' },
   { id: 'children', label: '학생 관리', path: '/app/children' },
   { id: 'analysis', label: '통계', path: '/app/analysis' },
   { id: 'offline', label: '오프라인', path: '/app/offline' },
+  { id: 'reports', label: '리포트', path: '/app/reports' },
   { id: 'alerts', label: '알림', path: '/app/alerts' },
   { id: 'settings', label: '설정', path: '/app/settings' },
 ]
@@ -16,6 +18,7 @@ function getActiveId(pathname) {
   if (pathname.startsWith('/app/children')) return 'children'
   if (pathname.startsWith('/app/analysis')) return 'analysis'
   if (pathname.startsWith('/app/offline')) return 'offline'
+  if (pathname.startsWith('/app/reports')) return 'reports'
   if (pathname.startsWith('/app/alerts')) return 'alerts'
   if (pathname.startsWith('/app/settings')) return 'settings'
   return 'home'
@@ -31,13 +34,12 @@ function SidebarAvatar({ child }) {
   return <div className="stats-profile-avatar">PA</div>
 }
 
-export function ParentShell({ children, selectedChild, childCount = 0, heading, subheading }) {
+export function ParentShell({ actions, children, selectedChild, childCount = 0, heading, subheading }) {
   const navigate = useNavigate()
   const location = useLocation()
   const { jwtPayload, logout, user } = useAuth()
   const activeId = getActiveId(location.pathname)
   const displayName = user?.name || jwtPayload?.name || '보호자'
-  const roleLabel = user?.roles?.[0] || jwtPayload?.roles?.[0] || 'PARENT'
 
   async function handleLogout() {
     await logout()
@@ -55,10 +57,7 @@ export function ParentShell({ children, selectedChild, childCount = 0, heading, 
 
       <aside className="stats-sidebar">
         <div>
-          <p className="stats-sidebar-title">PARENT</p>
-
           <nav className="stats-nav">
-            <p>메뉴</p>
             {navItems.map((item) => (
               <button
                 key={item.id}
@@ -66,7 +65,7 @@ export function ParentShell({ children, selectedChild, childCount = 0, heading, 
                 onClick={() => navigate(item.path)}
                 type="button"
               >
-                <span>•</span>
+                <SidebarNavIcon id={item.id} />
                 {item.label}
               </button>
             ))}
@@ -78,8 +77,8 @@ export function ParentShell({ children, selectedChild, childCount = 0, heading, 
             <SidebarAvatar child={selectedChild} />
             <div className="stats-profile-meta">
               <p className="stats-profile-name">{displayName}</p>
-              <p className="stats-profile-sub">보호자 ·</p>
-              <p className="stats-profile-role">ROLE_{roleLabel}</p>
+              <p className="stats-profile-sub">보호자 계정</p>
+              <p className="stats-profile-role">보호자 모드</p>
               {selectedChild ? (
                 <p className="stats-profile-sub mt-1">{selectedChild.name} · {calculateAgeLabel(selectedChild.birthDate)} · {childCount}명</p>
               ) : null}
@@ -94,9 +93,11 @@ export function ParentShell({ children, selectedChild, childCount = 0, heading, 
       <main className="stats-main">
         <header className="stats-topbar">
           <div>
+            <p className="eyebrow">가족 케어</p>
             <h1>{heading || '개요'}</h1>
             <p>{subheading || '자녀 진행 상황을 확인합니다.'}</p>
           </div>
+          {actions ? <div className="head-actions">{actions}</div> : null}
         </header>
 
         {children}

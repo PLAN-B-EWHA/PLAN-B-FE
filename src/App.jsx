@@ -26,6 +26,7 @@ function App() {
             <Route path="/app" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
             <Route path="/app/analysis" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
             <Route path="/app/offline" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+            <Route path="/app/reports" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
             <Route path="/app/admin/users" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
             <Route path="/app/admin/rag" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
             <Route path="/app/admin/rag-sources" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />

@@ -13,6 +13,8 @@ import { NotificationSettingsPage } from './NotificationSettingsPage'
 import { TherapistDashboardPage } from './TherapistDashboardPage'
 import { TherapistHomePage } from './TherapistHomePage'
 import { TherapistOfflinePage } from './TherapistOfflinePage'
+import { TherapistReportPage } from './TherapistReportPage'
+import { ParentReportPage } from './ParentReportPage'
 import { useAuth } from '../contexts/AuthContext'
 
 export function DashboardPage() {
@@ -22,6 +24,7 @@ export function DashboardPage() {
   const status = user?.status || jwtPayload?.status || jwtPayload?.memberStatus || null
   const isAnalysisPage = location.pathname.startsWith('/app/analysis')
   const isOfflinePage = location.pathname.startsWith('/app/offline')
+  const isReportsPage = location.pathname.startsWith('/app/reports')
   const isAlertsPage = location.pathname.startsWith('/app/alerts')
   const isSettingsPage = location.pathname.startsWith('/app/settings')
   const isAdminRagSourcePage = location.pathname.startsWith('/app/admin/rag-sources')
@@ -45,12 +48,14 @@ export function DashboardPage() {
     if (isAlertsPage) return <NotificationInboxPage />
     if (isSettingsPage) return <NotificationSettingsPage />
     if (isOfflinePage) return <TherapistOfflinePage />
+    if (isReportsPage) return <TherapistReportPage />
     return isAnalysisPage ? <TherapistDashboardPage /> : <TherapistHomePage />
   }
 
   if (isAlertsPage) return <NotificationInboxPage />
   if (isSettingsPage) return <NotificationSettingsPage />
   if (isOfflinePage) return <ParentOfflinePage />
+  if (isReportsPage) return <ParentReportPage />
 
   return isAnalysisPage ? <ParentDashboardPage /> : <ParentHomePage />
 }

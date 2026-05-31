@@ -1,12 +1,14 @@
 ﻿import { useNavigate } from 'react-router-dom'
 import { ThemeToggleButton } from './ThemeToggleButton'
 import { useAuth } from '../contexts/AuthContext'
+import { SidebarNavIcon } from './SidebarNavIcon'
 
 const navItems = [
   { id: 'home', label: '개요', path: '/app' },
-  { id: 'children', label: '아동관리', path: '/app/children' },
-  { id: 'analysis', label: '통계', path: '/app/analysis' },
+  { id: 'children', label: '아동 관리', path: '/app/children' },
+  { id: 'analysis', label: '분석', path: '/app/analysis' },
   { id: 'offline', label: '오프라인', path: '/app/offline' },
+  { id: 'reports', label: '리포트', path: '/app/reports' },
   { id: 'alerts', label: '알림', path: '/app/alerts' },
   { id: 'settings', label: '설정', path: '/app/settings' },
 ]
@@ -16,7 +18,6 @@ export function TherapistStatsShell({ activeId, title, subtitle, children }) {
   const { jwtPayload, user, logout } = useAuth()
 
   const displayName = user?.name || jwtPayload?.name || '치료사'
-  const roleLabel = user?.roles?.[0] || jwtPayload?.roles?.[0] || 'THERAPIST'
 
   async function handleLogout() {
     await logout()
@@ -34,10 +35,7 @@ export function TherapistStatsShell({ activeId, title, subtitle, children }) {
 
       <aside className="stats-sidebar">
         <div>
-          <p className="stats-sidebar-title">THERAPIST</p>
-
           <nav className="stats-nav">
-            <p>메뉴</p>
             {navItems.map((item) => (
               <button
                 key={item.id}
@@ -45,7 +43,7 @@ export function TherapistStatsShell({ activeId, title, subtitle, children }) {
                 onClick={() => navigate(item.path)}
                 type="button"
               >
-                <span>•</span>
+                <SidebarNavIcon id={item.id} />
                 {item.label}
               </button>
             ))}
@@ -57,8 +55,8 @@ export function TherapistStatsShell({ activeId, title, subtitle, children }) {
             <div className="stats-profile-avatar">DR</div>
             <div className="stats-profile-meta">
               <p className="stats-profile-name">{displayName}</p>
-              <p className="stats-profile-sub">치료사 ·</p>
-              <p className="stats-profile-role">ROLE_{roleLabel}</p>
+              <p className="stats-profile-sub">치료사 계정</p>
+              <p className="stats-profile-role">치료사 모드</p>
             </div>
           </div>
           <button className="stats-logout-btn" onClick={handleLogout} type="button">
@@ -70,6 +68,7 @@ export function TherapistStatsShell({ activeId, title, subtitle, children }) {
       <main className="stats-main">
         <header className="stats-topbar">
           <div>
+            <p className="eyebrow">치료사 워크스페이스</p>
             <h1>{title}</h1>
             <p>{subtitle}</p>
           </div>

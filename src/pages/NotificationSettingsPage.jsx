@@ -3,6 +3,7 @@ import { ParentShell } from '../components/ParentShell'
 import { TherapistStatsShell } from '../components/TherapistStatsShell'
 import { useAuth } from '../contexts/AuthContext'
 import { apiFetch, extractApiErrorMessage, extractApiPayload } from '../lib/api'
+import { calculateAgeLabel } from '../lib/childUtils'
 
 const typeMeta = {
   COMMENT_ADDED: {
@@ -34,27 +35,30 @@ function getVisiblePreferences(preferences, roles) {
 
 function PreferenceCard({ item, meta, saving, onToggle, onExtraChange, onSave }) {
   return (
-    <article className="stats-panel">
-      <div className="flex items-start justify-between gap-4">
+    <article className="card card-pad">
+      <div className="set-head">
         <div>
-          <p className="text-sm font-bold text-slate-900">{meta?.title || item.type}</p>
-          <p className="mt-1 text-sm leading-6 text-slate-500">{meta?.description || '알림 설정을 관리합니다.'}</p>
+          <h3>{meta?.title || item.type}</h3>
+          <p className="set-desc">{meta?.description || '알림 설정을 관리합니다.'}</p>
         </div>
-        <button className={`rounded-full px-3 py-1 text-xs font-semibold ${item.enabled ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`} onClick={() => onToggle(item.type)} type="button">
-          {item.enabled ? '활성화' : '비활성화'}
+        <button className={`switch ${item.enabled ? '' : 'off'}`} onClick={() => onToggle(item.type)} type="button">
+          <span className="track" />
+          <span className="sw-label">{item.enabled ? '활성화' : '비활성화'}</span>
         </button>
       </div>
 
       {meta?.hasExtraValue ? (
-        <div className="mt-4 flex items-center gap-3">
-          <label className="text-xs font-semibold text-slate-500" htmlFor={`extra-${item.type}`}>{meta.extraLabel}</label>
-          <input className="w-24 rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm text-slate-800" id={`extra-${item.type}`} min="1" onChange={(event) => onExtraChange(item.type, event.target.value)} type="number" value={item.extraValue ?? ''} />
-          <span className="text-xs text-slate-400">일</span>
+        <div className="num-row">
+          <label className="num-field" htmlFor={`extra-${item.type}`}>
+            <span className="fl2">{meta.extraLabel}</span>
+            <input className="input" id={`extra-${item.type}`} min="1" onChange={(event) => onExtraChange(item.type, event.target.value)} type="number" value={item.extraValue ?? ''} />
+          </label>
+          <span className="num-suffix">일</span>
         </div>
       ) : null}
 
-      <div className="mt-4 flex justify-end">
-        <button className="rounded-xl bg-[var(--brand-500)] px-4 py-2 text-xs font-semibold text-white disabled:opacity-40" disabled={saving} onClick={() => onSave(item)} type="button">
+      <div className="card-foot-right">
+        <button className="btn btn-primary btn-sm" disabled={saving} onClick={() => onSave(item)} type="button">
           {saving ? '저장 중...' : '저장'}
         </button>
       </div>
@@ -62,20 +66,152 @@ function PreferenceCard({ item, meta, saving, onToggle, onExtraChange, onSave })
   )
 }
 
-function SettingsContent({ title, subtitle, preferences, savingType, feedback, loading, onToggle, onExtraChange, onSave }) {
+function fmtDateTime(value) {
+  if (!value) return '-'
+  return new Date(value).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
+function GameChildSelector({ isTherapist, accessToken }) {
+  const [children, setChildren] = useState([])
+  const [selectedChildId, setSelectedChildId] = useState(null)
+  const [selectedChildName, setSelectedChildName] = useState(null)
+  const [updatedAt, setUpdatedAt] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [feedback, setFeedback] = useState('')
+
+  useEffect(() => {
+    if (!accessToken) return
+    let ignore = false
+
+    async function load() {
+      setLoading(true)
+      try {
+        const childrenPath = isTherapist ? '/children/accessible' : '/children/my'
+        const [childrenRes, selectionRes] = await Promise.allSettled([
+          apiFetch(childrenPath, { method: 'GET', token: accessToken }),
+          apiFetch('/unity/selected-child', { method: 'GET', token: accessToken }),
+        ])
+
+        if (ignore) return
+
+        if (childrenRes.status === 'fulfilled') {
+          const raw = extractApiPayload(childrenRes.value) || []
+          setChildren(Array.isArray(raw) ? raw : (raw?.content || []))
+        }
+        if (selectionRes.status === 'fulfilled') {
+          const sel = extractApiPayload(selectionRes.value)
+          setSelectedChildId(sel?.childId || null)
+          setSelectedChildName(sel?.childName || null)
+          setUpdatedAt(sel?.updatedAt || null)
+        }
+      } finally {
+        if (!ignore) setLoading(false)
+      }
+    }
+
+    load()
+    return () => { ignore = true }
+  }, [accessToken, isTherapist])
+
+  async function handleSelect(child) {
+    if (saving) return
+    setSaving(true)
+    setFeedback('')
+    try {
+      const res = await apiFetch('/unity/selected-child', {
+        method: 'PUT',
+        token: accessToken,
+        body: { childId: child.childId },
+      })
+      const sel = extractApiPayload(res)
+      setSelectedChildId(sel?.childId || child.childId)
+      setSelectedChildName(sel?.childName || child.name)
+      setUpdatedAt(sel?.updatedAt || null)
+      setFeedback(`${child.name} 아이로 게임 플레이 대상이 변경되었습니다.`)
+    } catch (error) {
+      setFeedback(extractApiErrorMessage(error))
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
-    <>
-      <div className="flex flex-col gap-2" style={{ marginTop: 16 }}>
-        <h2 className="text-[24px] font-black tracking-tight text-slate-950">{title}</h2>
-        <p className="text-sm text-slate-400">{subtitle}</p>
+    <article className="card card-pad">
+      <div className="set-head">
+        <div>
+          <h3>게임 플레이 아동 선택</h3>
+          <p className="set-desc">
+            Unity 게임에서 플레이할 아동을 선택합니다. 선택한 아동으로 게임 세션이 기록됩니다.
+          </p>
+        </div>
+        {selectedChildName ? (
+          <span className="chip chip-accent">
+            {selectedChildName}
+          </span>
+        ) : (
+          <span className="chip chip-neutral">미선택</span>
+        )}
       </div>
 
+      {loading ? (
+        <p className="mt-4 text-xs text-slate-400">아동 정보를 불러오는 중...</p>
+      ) : children.length === 0 ? (
+        <p className="mt-4 text-xs text-slate-400">접근 가능한 아동이 없습니다.</p>
+      ) : (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {children.map((child) => {
+            const isActive = child.childId === selectedChildId
+            return (
+              <button
+                className={`child-opt ${isActive ? '' : 'bg-white'}`}
+                disabled={saving}
+                key={child.childId}
+                onClick={() => handleSelect(child)}
+                type="button"
+              >
+                <span className="cdot" />
+                <span className="cn">{child.name}</span>
+                {child.birthDate ? <span className="ca">{calculateAgeLabel(child.birthDate)}</span> : null}
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {updatedAt ? (
+        <p className="mt-3 text-[11px] text-slate-400">마지막 변경: {fmtDateTime(updatedAt)}</p>
+      ) : null}
+
+      {feedback ? (
+        <p className={`mt-3 text-xs font-semibold ${feedback.includes('변경') ? 'text-emerald-600' : 'text-rose-500'}`}>
+          {feedback}
+        </p>
+      ) : null}
+    </article>
+  )
+}
+
+function SettingsContent({ preferences, savingType, feedback, loading, onToggle, onExtraChange, onSave, isTherapist, accessToken }) {
+  return (
+    <>
       {feedback ? <div className="stats-feedback">{feedback}</div> : null}
+
+      <section className="set-wrap">
+        <GameChildSelector accessToken={accessToken} isTherapist={isTherapist} />
+      </section>
+
+      <div className="section-head set-wrap" style={{ marginTop: 34 }}>
+        <div>
+          <div className="s-title">알림 설정</div>
+          <p className="sub">알림 종류와 기준을 직접 설정할 수 있습니다.</p>
+        </div>
+      </div>
 
       {loading ? (
         <div className="stats-loading">설정 정보를 불러오는 중입니다...</div>
       ) : (
-        <section className="mt-5 grid gap-4 xl:grid-cols-2">
+        <section className="set-wrap grid gap-4">
           {preferences.map((item) => (
             <PreferenceCard
               item={item}
@@ -165,15 +301,15 @@ export function NotificationSettingsPage() {
 
   const content = (
     <SettingsContent
+      accessToken={accessToken}
       feedback={feedback}
+      isTherapist={isTherapist}
       loading={loading}
       onExtraChange={handleExtraChange}
       onSave={handleSave}
       onToggle={handleToggle}
       preferences={visiblePreferences}
       savingType={savingType}
-      subtitle={isTherapist ? '치료사 알림을 원하는 방식으로 제어할 수 있습니다.' : '부모 알림을 원하는 방식으로 제어할 수 있습니다.'}
-      title="알림 설정"
     />
   )
 

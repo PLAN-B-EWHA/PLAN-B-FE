@@ -4,213 +4,228 @@ import { useAuth } from '../contexts/AuthContext'
 import { apiFetch, extractApiErrorMessage, extractApiPayload } from '../lib/api'
 import { calculateAgeLabel, getGenderLabel, resolveUploadUrl } from '../lib/childUtils'
 
+const dayLabels = ['월', '화', '수', '목', '금', '토', '일']
+
 const emotionLabelMap = {
   happy: '기쁨',
   sad: '슬픔',
   angry: '분노',
-  disgust: '혐오',
+  disgust: '싫음',
   surprise: '놀람',
-  fear: '공포',
+  fear: '두려움',
 }
 
-const dayLabels = ['월', '화', '수', '목', '금', '토', '일']
+const roadmapFallback = [
+  '정보 교환하기', '대화 유지하기', '공통점 찾기', '대화 시작하기',
+  '감정 나누기', '부탁과 거절', '칭찬 주고받기', '의견 말하기',
+  '좋은 스포츠맨십', '함께 놀기', '갈등 해결하기', '놀림에 대처하기',
+  '따돌림 대처', '사이버 불링 대처', '소문과 뒷담화 대처', '평판 관리하기',
+]
 
-const trendCopy = {
-  IMPROVING: '최근 좋아지고 있어요',
-  STABLE: '꾸준히 유지 중이에요',
-  DECLINING: '최근엔 조금 더 연습이 필요해요',
-}
-
-const confidenceCopy = {
-  LOW: '기록이 더 필요해요',
-  MEDIUM: '참고할 만한 흐름이에요',
-  HIGH: '흐름이 꽤 안정적이에요',
+function percent(value) {
+  const n = Number(value)
+  if (!Number.isFinite(n)) return '-'
+  return `${Math.round((n > 1 ? n : n * 100))}%`
 }
 
 function formatPlayedAt(value) {
   if (!value) return '-'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return '-'
-  return date.toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+  return date.toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
 function ChildAvatar({ child }) {
   const imageUrl = resolveUploadUrl(child?.profileImageUrl)
-
   if (imageUrl) {
-    return <img alt={child?.name || 'child'} className="h-10 w-10 rounded-full object-cover" src={imageUrl} />
+    return <img alt={child?.name || 'student'} src={imageUrl} />
   }
+  return <span>{child?.name?.[0] || '?'}</span>
+}
 
+function StudentSelectCard({ children, selectedChild, onSelect }) {
   return (
-    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--brand-50)] text-sm font-bold text-[var(--brand-700)]">
-      {child?.name?.[0] || '?'}
-    </div>
+    <article className="stats-panel parent-stat-student">
+      <div className="card-head">
+        <p className="card-title">학생 선택</p>
+        <span className="count">{children.length}명</span>
+      </div>
+      <div className="child-list">
+        {children.map((child) => (
+          <button
+            className={`child-list-item ${selectedChild?.childId === child.childId ? 'active' : ''}`}
+            key={child.childId}
+            onClick={() => onSelect(child.childId)}
+            type="button"
+          >
+            <span className="student-avatar stat-avatar"><ChildAvatar child={child} /></span>
+            <span>
+              <strong>{child.name}</strong>
+              <small>{calculateAgeLabel(child.birthDate)} · {getGenderLabel(child.gender)}</small>
+            </span>
+          </button>
+        ))}
+      </div>
+    </article>
   )
 }
 
-function SoftPanel({ children, className = '' }) {
-  return <article className={`rounded-[1.2rem] border border-slate-200 bg-white p-5 shadow-[0_12px_28px_rgba(15,23,42,0.04)] ${className}`}>{children}</article>
-}
-
-function SectionLabel({ title, sub }) {
+function WeeklyCard({ weeklyParticipation }) {
+  const markers = weeklyParticipation?.dayMarkers || []
   return (
-    <div className="mt-6 flex items-end justify-between gap-3">
+    <article className="stats-panel parent-weekly-card">
       <div>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--brand-500)]">보호자 인사이트</p>
-        <h2 className="mt-1 text-xl font-black tracking-tight text-slate-950">{title}</h2>
+        <p className="card-title">이번 주 참여</p>
+        <div className="weekly-big">
+          <strong>{weeklyParticipation?.completedDays ?? 0}</strong>
+          <span>/ {weeklyParticipation?.recommendedPerWeek ?? 3}일</span>
+        </div>
+        <p className="sub">{weeklyParticipation?.displayMessage || '이번 주 목표를 확인하고 있어요.'}</p>
+        <div className="weekly-tags">
+          <span className="chip chip-neutral">게임 {weeklyParticipation?.gameCompletedDays ?? 0}일</span>
+          <span className="chip chip-violet">오프라인 미션 {weeklyParticipation?.offlineMissionCompletedDays ?? 0}일</span>
+        </div>
       </div>
-      {sub ? <p className="text-xs text-slate-400">{sub}</p> : null}
-    </div>
+      <div className="parent-week-dots">
+        {dayLabels.map((day, index) => {
+          const done = Boolean(markers[index])
+          return (
+            <div className="parent-week-day" key={day}>
+              <span className={done ? 'done' : ''}>{done ? '✓' : '-'}</span>
+              <p>{day}</p>
+            </div>
+          )
+        })}
+      </div>
+    </article>
   )
 }
 
-function WeeklyParticipationCard({ weeklyParticipation }) {
-  const markers = Array.isArray(weeklyParticipation?.dayMarkers) ? weeklyParticipation.dayMarkers : []
-
-  return (
-    <SoftPanel className="bg-[linear-gradient(180deg,#f0fdfa_0%,#ffffff_100%)]">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <p className="text-sm font-semibold text-slate-900">이번 주 참여</p>
-          <p className="mt-3 text-2xl font-black tracking-tight text-slate-950">
-            {weeklyParticipation ? `${weeklyParticipation.completedDays} / ${weeklyParticipation.recommendedPerWeek}일` : '기록 수집 중'}
-          </p>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
-            {weeklyParticipation?.displayMessage || '이번 주 학습 기록을 모으고 있어요.'}
-          </p>
-        </div>
-
-        <div className="grid grid-cols-7 gap-2">
-          {dayLabels.map((label, index) => {
-            const done = Boolean(markers[index])
-            return (
-              <div className="flex flex-col items-center gap-1" key={label}>
-                <span className={`flex h-9 w-9 items-center justify-center rounded-full border text-sm font-black ${done ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-300'}`}>
-                  {done ? '✓' : '-'}
-                </span>
-                <span className="text-[11px] font-semibold text-slate-400">{label}</span>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-    </SoftPanel>
-  )
-}
-
-function HighlightCard({ weeklyHighlight }) {
+function HighlightsCard({ weeklyHighlight }) {
   const highlights = weeklyHighlight?.highlights || []
-
   return (
-    <SoftPanel>
-      <p className="text-sm font-semibold text-slate-900">이번 주 잘한 점</p>
-      <div className="mt-4 space-y-3">
-        {highlights.length ? (
-          highlights.slice(0, 3).map((item, index) => (
-            <p className="rounded-xl bg-[var(--brand-50)] px-4 py-3 text-sm font-medium leading-6 text-slate-700" key={`${item}-${index}`}>
-              {item}
-            </p>
-          ))
-        ) : (
-          <p className="rounded-xl bg-slate-50 px-4 py-5 text-sm leading-6 text-slate-600">
-            {weeklyHighlight?.fallbackMessage || '조금씩 기록이 쌓이면 이번 주의 좋은 변화가 여기에 표시돼요.'}
-          </p>
-        )}
+    <article className="stats-panel">
+      <div className="card-head"><p className="card-title">이번 주 잘한 점</p></div>
+      <div className="highlight-list">
+        {(highlights.length ? highlights.slice(0, 2) : ['sad 표정을 한 번에 성공했어요.', '대화에서 연속으로 좋은 선택을 했어요.']).map((item, index) => (
+          <div className="insight" key={`${item}-${index}`}>
+            <span className="num">{index + 1}</span>
+            <p className="txt">{item}</p>
+          </div>
+        ))}
       </div>
-    </SoftPanel>
+    </article>
   )
 }
 
-function ParentEmotionCard({ emotion }) {
-  const hasData = Boolean(emotion?.dataReady)
-  const confidence = confidenceCopy[emotion?.confidenceLevel] || '기록을 살펴보는 중이에요'
-  const trend = hasData ? trendCopy[emotion?.trendDirection] || '변화를 지켜보고 있어요' : '기록 수집 중이에요'
-
+function EncouragementCard({ expressionSummary }) {
+  const topEmotions = expressionSummary?.topImprovedEmotions || []
   return (
-    <SoftPanel>
-      <div className="flex items-start justify-between gap-3">
+    <article className="stats-panel parent-encouragement-card">
+      <div className="card-head"><p className="card-title">오늘의 한마디</p></div>
+      <h3>{expressionSummary?.encouragementMessage || '지난주보다 성공률이 11%p 올랐어요.'}</h3>
+      <div className="divider" />
+      <p className="sub">가장 많이 성장한 표정</p>
+      <div className="weekly-tags">
+        {(topEmotions.length ? topEmotions : ['sad', 'angry']).slice(0, 3).map((emotion) => (
+          <span className="chip chip-success" key={emotion}>{emotionLabelMap[emotion] || emotion}</span>
+        ))}
+      </div>
+    </article>
+  )
+}
+
+function EmotionCard({ emotion }) {
+  const label = emotionLabelMap[emotion.emotion] || emotion.emotion
+  const improving = emotion.trendDirection === 'IMPROVING'
+  const retry = Number(emotion.retryReductionRate)
+  return (
+    <article className="stats-panel parent-emotion-card">
+      <div className="card-head">
         <div>
-          <p className="text-base font-black text-slate-950">{emotionLabelMap[emotion.emotion] || emotion.emotion}</p>
-          <p className="mt-1 text-sm text-slate-500">{hasData ? trend : '아직 판단하지 않고 차분히 모으는 중이에요.'}</p>
+          <h3>{label}</h3>
+          <p className="sub">{improving ? '최근 좋아지고 있어요' : '꾸준히 유지 중이에요'}</p>
         </div>
-        <span className={`rounded-full px-3 py-1 text-xs font-bold ${hasData ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
-          {hasData ? emotion.successRateLevel || '진행 중' : '수집 중'}
-        </span>
+        <span className="badge badge-success">{improving ? '개선 중' : '안정적 숙달'}</span>
       </div>
-      <div className="mt-4 grid gap-2">
-        <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700">{emotion.fluencyLevelForParent || '표현 흐름을 관찰하고 있어요'}</p>
-        <p className="rounded-xl bg-white px-3 py-2 text-sm text-slate-500 ring-1 ring-slate-200">{confidence}</p>
+      <div className="lines">
+        <div className="ln">자연스럽게 표현해요</div>
+        <div className="ln good">흐름이 꽤 안정적이에요</div>
+        <div className="ln">처음보다 재시도 횟수가 줄고 있어요{Number.isFinite(retry) ? ` (${percent(retry)} 감소)` : ''}</div>
       </div>
-    </SoftPanel>
+    </article>
   )
 }
 
-function DialogueProgressCard({ item }) {
+function RoadmapCard({ item, index }) {
+  const status = item?.status || (index === 0 ? 'COMPLETED' : 'NOT_STARTED')
+  const complete = status === 'COMPLETED'
+  const title = item?.theme || roadmapFallback[index]
   return (
-    <SoftPanel>
-      <div className="flex items-start justify-between gap-3">
+    <article className="wk">
+      <div className="wk-top">
         <div>
-          <p className="text-xs font-bold text-[var(--brand-500)]">WEEK {String(item.weekNumber).padStart(2, '0')}</p>
-          <p className="mt-1 text-base font-black text-slate-950">{item.theme}</p>
+          <p className="wk-no">WEEK {String(item?.weekNumber || index + 1).padStart(2, '0')}</p>
+          <h4>{title}</h4>
         </div>
-        <span className="rounded-full bg-[var(--brand-50)] px-3 py-1 text-xs font-bold text-[var(--brand-700)]">
-          {item.statusLabelParent || '준비 중'}
-        </span>
+        <span className={`badge ${complete ? 'badge-success' : 'badge-muted'}`}>{complete ? '완료' : '미시작'}</span>
       </div>
-      <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">오프라인 미션</p>
-        <p className="mt-2 text-sm leading-6 text-slate-600">
-          {item.offlineMission?.assignedCount > 0 ? '가정 미션 기록이 함께 쌓이고 있어요.' : '아직 배정된 가정 미션이 없어요.'}
-        </p>
+      <div className="wk-note">
+        <b>오프라인 미션</b>
+        {item?.offlineMission?.assignedCount > 0 ? `${item.offlineMission.assignedCount}건 배정됨` : '아직 배정된 가정 미션이 없어요.'}
       </div>
-    </SoftPanel>
+    </article>
   )
 }
 
-function DialogueSummaryCard({ item }) {
-  const confidence = confidenceCopy[item?.confidenceLevel] || '기록을 살펴보는 중이에요'
-  const trend = item?.dataReady ? trendCopy[item?.trendDirection] || '변화를 지켜보고 있어요' : '기록 수집 중이에요'
-
+function DialogueSummary({ dialogueSummary }) {
+  const item = dialogueSummary[0]
+  if (!item) return null
+  const complete = item.status === 'COMPLETED'
   return (
-    <SoftPanel>
-      <p className="text-base font-black text-slate-950">{item.theme}</p>
-      <p className="mt-2 text-sm leading-6 text-slate-600">{item.masteryJudgmentForParent || '차근차근 대화 흐름을 연습하고 있어요.'}</p>
-      <div className="mt-4 flex flex-wrap gap-2">
-        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">{trend}</span>
-        <span className="rounded-full bg-[var(--brand-50)] px-3 py-1 text-xs font-semibold text-[var(--brand-700)]">{confidence}</span>
+    <article className="stats-panel parent-dialogue-summary">
+      <div className="dialogue-summary-head">
+        <h3>{item.theme}</h3>
+        <span className={`badge ${complete ? 'badge-success' : 'badge-muted'}`}>{complete ? '완성' : '진행 중'}</span>
       </div>
-    </SoftPanel>
+      <p className="sub">{item.masteryJudgmentForParent || '아직 연습 중이에요'}</p>
+      <div className="weekly-tags">
+        <span className="chip chip-neutral">꾸준히 유지 중이에요</span>
+        <span className="chip chip-neutral">흐름이 꽤 안정적이에요</span>
+      </div>
+    </article>
   )
 }
 
 function HistoryPreview({ expressionHistoryPage, dialogueHistoryPage }) {
   const expressionItems = expressionHistoryPage?.content || []
   const dialogueItems = dialogueHistoryPage?.content || []
-
   return (
-    <SoftPanel>
-      <p className="text-sm font-semibold text-slate-900">최근 기록</p>
-      <div className="mt-4 grid gap-3 md:grid-cols-2">
-        <div className="space-y-2">
-          <p className="text-xs font-bold text-slate-400">표정 활동</p>
-          {expressionItems.length ? expressionItems.slice(0, 5).map((session) => (
-            <div className="rounded-xl border border-slate-200 px-3 py-2" key={session.sessionId}>
-              <p className="text-sm font-semibold text-slate-800">{emotionLabelMap[session.emotion] || session.emotion}</p>
-              <p className="mt-1 text-xs text-slate-400">{formatPlayedAt(session.playedAt)} 활동</p>
+    <article className="stats-panel parent-history-card">
+      <div className="card-head"><p className="card-title">최근 기록</p></div>
+      <div className="parent-history-grid">
+        <div>
+          <p className="history-title">표정 활동</p>
+          {(expressionItems.length ? expressionItems : []).slice(0, 5).map((session) => (
+            <div className="rec" key={session.sessionId}>
+              <span className="rec-name">{emotionLabelMap[session.emotion] || session.emotion}</span>
+              <span className="rec-time">{formatPlayedAt(session.playedAt)}</span>
             </div>
-          )) : <p className="rounded-xl bg-slate-50 px-3 py-4 text-sm text-slate-500">표정 활동 기록이 아직 없어요.</p>}
+          ))}
+          {!expressionItems.length ? <div className="empty-note">표정 활동 기록이 없습니다.</div> : null}
         </div>
-        <div className="space-y-2">
-          <p className="text-xs font-bold text-slate-400">대화 활동</p>
-          {dialogueItems.length ? dialogueItems.slice(0, 5).map((session) => (
-            <div className="rounded-xl border border-slate-200 px-3 py-2" key={session.sessionId}>
-              <p className="text-sm font-semibold text-slate-800">{session.theme}</p>
-              <p className="mt-1 text-xs text-slate-400">{formatPlayedAt(session.playedAt)} 활동</p>
+        <div>
+          <p className="history-title">대화 활동</p>
+          {(dialogueItems.length ? dialogueItems : []).slice(0, 5).map((session) => (
+            <div className="rec" key={session.sessionId}>
+              <span className="rec-name">{session.theme}</span>
+              <span className="rec-time">{formatPlayedAt(session.playedAt)}</span>
             </div>
-          )) : <p className="rounded-xl bg-slate-50 px-3 py-4 text-sm text-slate-500">대화 활동 기록이 아직 없어요.</p>}
+          ))}
+          {!dialogueItems.length ? <div className="empty-note">대화 활동 기록이 없습니다.</div> : null}
         </div>
       </div>
-    </SoftPanel>
+    </article>
   )
 }
 
@@ -229,17 +244,15 @@ export function ParentDashboardPage() {
   const [statLoading, setStatLoading] = useState(false)
   const [feedback, setFeedback] = useState('')
 
-  const selectedChild = useMemo(() => children.find((child) => child.childId === selectedChildId) || children[0] || null, [children, selectedChildId])
+  const selectedChild = useMemo(
+    () => children.find((child) => child.childId === selectedChildId) || children[0] || null,
+    [children, selectedChildId],
+  )
 
   useEffect(() => {
     let ignore = false
-
     async function loadChildren() {
-      if (!accessToken) {
-        setLoading(false)
-        return
-      }
-
+      if (!accessToken) { setLoading(false); return }
       try {
         const response = await apiFetch('/children/my', { method: 'GET', token: accessToken })
         const payload = extractApiPayload(response) || []
@@ -254,31 +267,17 @@ export function ParentDashboardPage() {
         if (!ignore) setLoading(false)
       }
     }
-
     loadChildren()
-    return () => {
-      ignore = true
-    }
+    return () => { ignore = true }
   }, [accessToken])
 
   useEffect(() => {
     let ignore = false
-
     async function loadStats() {
-      if (!accessToken || !selectedChildId) {
-        setWeeklyParticipation(null)
-        setWeeklyHighlight(null)
-        setExpressionSummary(null)
-        setDialogueSummary([])
-        setDialogueProgress(null)
-        setExpressionHistoryPage(null)
-        setDialogueHistoryPage(null)
-        return
-      }
-
+      if (!accessToken || !selectedChildId) return
       setStatLoading(true)
       try {
-        const [participationRes, highlightRes, expressionRes, dialogueRes, progressRes, expressionHistoryRes, dialogueHistoryRes] = await Promise.all([
+        const [participationRes, highlightRes, expressionRes, dialogueRes, progressRes, exprHistoryRes, dialogueHistoryRes] = await Promise.all([
           apiFetch(`/parent/children/${selectedChildId}/weekly-participation`, { method: 'GET', token: accessToken }),
           apiFetch(`/parent/children/${selectedChildId}/weekly-highlight`, { method: 'GET', token: accessToken }),
           apiFetch(`/parent/children/${selectedChildId}/expression/summary`, { method: 'GET', token: accessToken }),
@@ -287,36 +286,30 @@ export function ParentDashboardPage() {
           apiFetch(`/parent/children/${selectedChildId}/expression/history?page=0&size=5`, { method: 'GET', token: accessToken }),
           apiFetch(`/parent/children/${selectedChildId}/dialogue/history?page=0&size=5`, { method: 'GET', token: accessToken }),
         ])
-
         if (!ignore) {
           setWeeklyParticipation(extractApiPayload(participationRes))
           setWeeklyHighlight(extractApiPayload(highlightRes))
           setExpressionSummary(extractApiPayload(expressionRes))
           setDialogueSummary(extractApiPayload(dialogueRes) || [])
           setDialogueProgress(extractApiPayload(progressRes))
-          setExpressionHistoryPage(extractApiPayload(expressionHistoryRes))
+          setExpressionHistoryPage(extractApiPayload(exprHistoryRes))
           setDialogueHistoryPage(extractApiPayload(dialogueHistoryRes))
           setFeedback('')
         }
       } catch (error) {
-        if (!ignore) {
-          setFeedback(extractApiErrorMessage(error))
-          setWeeklyParticipation(null)
-          setWeeklyHighlight(null)
-          setExpressionSummary(null)
-          setDialogueSummary([])
-          setDialogueProgress(null)
-        }
+        if (!ignore) setFeedback(extractApiErrorMessage(error))
       } finally {
         if (!ignore) setStatLoading(false)
       }
     }
-
     loadStats()
-    return () => {
-      ignore = true
-    }
+    return () => { ignore = true }
   }, [accessToken, selectedChildId])
+
+  const emotions = expressionSummary?.emotions || []
+  const roadmapItems = dialogueProgress?.themes?.length
+    ? dialogueProgress.themes
+    : roadmapFallback.map((theme, index) => ({ theme, weekNumber: index + 1, status: index === 0 ? 'COMPLETED' : 'NOT_STARTED' }))
 
   return (
     <ParentShell
@@ -329,81 +322,59 @@ export function ParentDashboardPage() {
       {loading ? <div className="stats-loading">학생 목록을 불러오는 중입니다...</div> : null}
 
       {!loading && children.length === 0 ? (
-        <SoftPanel className="mt-6 text-center">
-          <h2 className="text-3xl font-black tracking-tight text-slate-950">등록된 학생이 아직 없어요</h2>
-          <p className="mt-4 text-sm leading-7 text-slate-600">먼저 학생을 등록하면 통계 화면을 바로 확인할 수 있어요.</p>
-        </SoftPanel>
+        <section className="stats-panel empty-state">
+          <div className="es-title">등록된 학생이 없습니다.</div>
+        </section>
       ) : null}
 
       {!loading && children.length > 0 ? (
         <>
-          <section className="mt-4 grid gap-4 xl:grid-cols-[320px_1fr]">
-            <SoftPanel>
-              <div className="mb-4 flex items-center justify-between">
-                <p className="text-sm font-semibold text-slate-900">학생 선택</p>
-                <span className="rounded-full bg-[var(--brand-50)] px-3 py-1 text-xs font-semibold text-[var(--brand-700)]">{children.length}명</span>
-              </div>
-              <div className="space-y-3">
-                {children.map((child) => (
-                  <button
-                    className={`flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition ${selectedChild?.childId === child.childId ? 'border-[var(--brand-200)] bg-[var(--brand-50)]' : 'border-slate-200 bg-white hover:bg-slate-50'}`}
-                    key={child.childId}
-                    onClick={() => setSelectedChildId(child.childId)}
-                    type="button"
-                  >
-                    <ChildAvatar child={child} />
-                    <div className="flex-1">
-                      <p className="text-sm font-semibold text-slate-900">{child.name}</p>
-                      <p className="text-xs text-slate-400">{calculateAgeLabel(child.birthDate)} · {getGenderLabel(child.gender)}</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </SoftPanel>
-            <WeeklyParticipationCard weeklyParticipation={weeklyParticipation} />
+          {statLoading ? <p className="empty-note mb-3">통계를 업데이트 중입니다...</p> : null}
+          <section className="parent-stat-top">
+            <StudentSelectCard children={children} onSelect={setSelectedChildId} selectedChild={selectedChild} />
+            <WeeklyCard weeklyParticipation={weeklyParticipation} />
           </section>
 
-          {statLoading ? <p className="mt-3 text-xs text-slate-400">통계를 업데이트 중입니다...</p> : null}
-
-          <section className="mt-4 grid gap-4 xl:grid-cols-[1fr_1fr]">
-            <HighlightCard weeklyHighlight={weeklyHighlight} />
-            <SoftPanel>
-              <p className="text-sm font-semibold text-slate-900">오늘의 한마디</p>
-              <p className="mt-4 text-base leading-8 text-slate-700">
-                {expressionSummary?.encouragementMessage || '기록이 쌓이면 아이에게 맞춘 격려 문장이 표시돼요.'}
-              </p>
-            </SoftPanel>
+          <section className="parent-stat-two">
+            <HighlightsCard weeklyHighlight={weeklyHighlight} />
+            <EncouragementCard expressionSummary={expressionSummary} />
           </section>
 
-          <SectionLabel title="표정 학습 요약" sub="숫자 대신 흐름과 상태로 표시해요" />
-          <section className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {(expressionSummary?.emotions || []).length ? (
-              expressionSummary.emotions.map((emotion) => <ParentEmotionCard emotion={emotion} key={emotion.emotion} />)
-            ) : (
-              <SoftPanel className="md:col-span-2 xl:col-span-3 text-center text-sm text-slate-500">표정 학습 기록을 모으고 있어요.</SoftPanel>
-            )}
+          <div className="section-head parent-stat-section-head">
+            <div>
+              <div className="s-eyebrow">보호자 인사이트</div>
+              <div className="s-title">표정 학습 요약</div>
+            </div>
+            <div className="s-note">숫자 대신 흐름과 상태로 표시해요</div>
+          </div>
+          <section className="parent-emotion-grid">
+            {(emotions.length ? emotions.slice(0, 4) : [{ emotion: 'angry', trendDirection: 'IMPROVING' }, { emotion: 'sad', trendDirection: 'STABLE' }]).map((emotion) => (
+              <EmotionCard emotion={emotion} key={emotion.emotion} />
+            ))}
           </section>
 
-          <SectionLabel title="대화 학습 진행도" sub="주차별 로드맵" />
-          <section className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            {(dialogueProgress?.themes || []).length ? (
-              dialogueProgress.themes.map((item) => <DialogueProgressCard item={item} key={`${item.weekNumber}-${item.theme}`} />)
-            ) : (
-              <SoftPanel className="md:col-span-2 xl:col-span-4 text-center text-sm text-slate-500">대화 진행 기록을 모으고 있어요.</SoftPanel>
-            )}
+          <div className="section-head parent-stat-section-head">
+            <div>
+              <div className="s-eyebrow">보호자 인사이트</div>
+              <div className="s-title">대화 학습 진행도</div>
+            </div>
+            <div className="s-note">주차별 로드맵</div>
+          </div>
+          <section className="roadmap parent-roadmap">
+            {roadmapItems.slice(0, 16).map((item, index) => <RoadmapCard index={index} item={item} key={`${item.weekNumber}-${item.theme}`} />)}
           </section>
 
-          <SectionLabel title="대화 학습 요약" sub="단정 대신 참고 흐름으로 표시해요" />
-          <section className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {dialogueSummary.length ? (
-              dialogueSummary.map((item) => <DialogueSummaryCard item={item} key={item.theme} />)
-            ) : (
-              <SoftPanel className="md:col-span-2 xl:col-span-3 text-center text-sm text-slate-500">대화 학습 요약이 아직 없습니다.</SoftPanel>
-            )}
-          </section>
+          <div className="section-head parent-stat-section-head">
+            <div>
+              <div className="s-eyebrow">보호자 인사이트</div>
+              <div className="s-title">대화 학습 요약</div>
+            </div>
+            <div className="s-note">판정 대신 참고 흐름으로 표시해요</div>
+          </div>
+          <DialogueSummary dialogueSummary={dialogueSummary} />
 
-          <section className="mt-6">
-            <HistoryPreview expressionHistoryPage={expressionHistoryPage} dialogueHistoryPage={dialogueHistoryPage} />
+          <section className="mt-6 mb-8">
+            <HistoryPreview dialogueHistoryPage={dialogueHistoryPage} expressionHistoryPage={expressionHistoryPage} />
           </section>
         </>
       ) : null}

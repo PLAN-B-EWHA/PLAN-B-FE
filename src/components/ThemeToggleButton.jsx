@@ -5,9 +5,9 @@ export function ThemeToggleButton() {
   const palettes = ['clinical', 'sage-clinical', 'deep']
   const fontScales = ['compact', 'normal', 'large']
   const paletteColors = {
-    clinical: '#2f6e89',
-    'sage-clinical': '#5f7d51',
-    deep: '#4f6ea8',
+    clinical: '#1f4f5f',
+    'sage-clinical': '#4f6b43',
+    deep: '#3a6db0',
   }
 
   function cyclePalette() {
@@ -32,7 +32,7 @@ export function ThemeToggleButton() {
       <button aria-label="글자 크기 변경" className="theme-font-btn" onClick={cycleFontScale} title="글자 크기" type="button">
         {fontLabel}
       </button>
-      <button aria-label="다크 모드 변경" className="theme-mode-btn compact" onClick={toggleTheme} title="다크 모드" type="button">
+      <button aria-label="화면 모드 변경" className="theme-mode-btn compact" onClick={toggleTheme} title="화면 모드" type="button">
         <div className={`theme-toggle ${isDarkMode ? 'dark' : ''}`}>
           <span />
         </div>

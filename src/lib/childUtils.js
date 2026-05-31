@@ -10,33 +10,7 @@ export const defaultChildForm = {
   interests: '',
   pin: '',
   profileImageUrl: '',
-  languageSkill: '',
-  sensoryProcessing: '',
-  preferredExpressions: [],
-  difficultExpressions: [],
 }
-
-export const languageSkillOptions = [
-  { value: 'NONVERBAL', label: '비언어적 표현 중심' },
-  { value: 'VOCABULARY', label: '단어 표현 가능' },
-  { value: 'SHORT_SENTENCE', label: '짧은 문장 가능' },
-  { value: 'FLUENT', label: '유창한 표현 가능' },
-]
-
-export const sensoryProcessingOptions = [
-  { value: 'AUDITORY_SENSITIVITY', label: '청각 민감성' },
-  { value: 'SENSORY_SEEKING', label: '감각 추구 성향' },
-  { value: 'TACTILE_DEFENSIVENESS', label: '촉각 방어 성향' },
-]
-
-export const expressionTagOptions = [
-  { value: 'JOY', label: '기쁨' },
-  { value: 'SAD', label: '슬픔' },
-  { value: 'FEAR', label: '두려움' },
-  { value: 'SURPRISE', label: '놀람' },
-  { value: 'DISGUST', label: '혐오' },
-  { value: 'ANGRY', label: '분노' },
-]
 
 export function calculateAgeLabel(birthDate, fallback = '생년월일 미입력') {
   if (!birthDate) {
@@ -78,23 +52,7 @@ export function normalizeChildForm(form) {
     interests: form.interests || null,
     pin: form.pin || null,
     profileImageUrl: form.profileImageUrl || null,
-    languageSkill: form.languageSkill || null,
-    sensoryProcessing: form.sensoryProcessing || null,
-    preferredExpressions: form.preferredExpressions?.length ? form.preferredExpressions : [],
-    difficultExpressions: form.difficultExpressions?.length ? form.difficultExpressions : [],
   }
-}
-
-export function getLanguageSkillLabel(value) {
-  return languageSkillOptions.find((option) => option.value === value)?.label || '미입력'
-}
-
-export function getSensoryProcessingLabel(value) {
-  return sensoryProcessingOptions.find((option) => option.value === value)?.label || '미입력'
-}
-
-export function getExpressionTagLabel(value) {
-  return expressionTagOptions.find((option) => option.value === value)?.label || value
 }
 
 export function buildChildFormFromDetail(detail) {
@@ -112,10 +70,6 @@ export function buildChildFormFromDetail(detail) {
     interests: detail.interests || '',
     pin: '',
     profileImageUrl: detail.profileImageUrl || '',
-    languageSkill: detail.languageSkill || '',
-    sensoryProcessing: detail.sensoryProcessing || '',
-    preferredExpressions: Array.isArray(detail.preferredExpressions) ? detail.preferredExpressions : [],
-    difficultExpressions: Array.isArray(detail.difficultExpressions) ? detail.difficultExpressions : [],
   }
 }
 

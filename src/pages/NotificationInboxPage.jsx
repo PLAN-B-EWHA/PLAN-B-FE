@@ -1,19 +1,23 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { ParentShell } from '../components/ParentShell'
 import { TherapistStatsShell } from '../components/TherapistStatsShell'
 import { useAuth } from '../contexts/AuthContext'
 import { apiFetch, extractApiErrorMessage, extractApiPayload, resolveApiUrl } from '../lib/api'
 
 const typeMeta = {
-  COMMENT_ADDED: { label: '메모 발행', tone: 'bg-indigo-50 text-indigo-700' },
-  WEEKLY_SUMMARY: { label: '주간 요약', tone: 'bg-emerald-50 text-emerald-700' },
-  CHILD_INACTIVE: { label: '미접속', tone: 'bg-amber-50 text-amber-700' },
-  NOTE_COMMENT_ADDED: { label: '노트 댓글', tone: 'bg-indigo-50 text-indigo-700' },
-  NOTE_REPLY_ADDED: { label: '노트 답글', tone: 'bg-indigo-50 text-indigo-700' },
-  NOTE_ASSET_UPLOADED: { label: '노트 첨부', tone: 'bg-indigo-50 text-indigo-700' },
-  MISSION_COMPLETED: { label: '미션 완료', tone: 'bg-emerald-50 text-emerald-700' },
-  MISSION_PHOTO_UPLOADED: { label: '사진 업로드', tone: 'bg-sky-50 text-sky-700' },
-  REPORT_GENERATED: { label: '리포트 생성', tone: 'bg-violet-50 text-violet-700' },
+  COMMENT_ADDED: { label: '메모 발행', tone: 'info', icon: 'i' },
+  WEEKLY_SUMMARY: { label: '주간 요약', tone: 'success', icon: '✓' },
+  CHILD_INACTIVE: { label: '미접속', tone: 'warn', icon: '!' },
+  NOTE_COMMENT_ADDED: { label: '노트 댓글', tone: 'info', icon: 'i' },
+  NOTE_REPLY_ADDED: { label: '노트 답글', tone: 'info', icon: 'i' },
+  NOTE_ASSET_UPLOADED: { label: '노트 첨부', tone: 'info', icon: 'i' },
+  MISSION_COMPLETED: { label: '미션 완료', tone: 'success', icon: '✓' },
+  MISSION_PHOTO_UPLOADED: { label: '사진 업로드', tone: 'info', icon: 'i' },
+  REPORT_GENERATED: { label: '리포트 생성', tone: 'info', icon: 'i' },
+  HOMEWORK_SUBMITTED: { label: '미션 제출', tone: 'warn', icon: '!', route: '/app/offline' },
+  HOMEWORK_REVIEWED: { label: '검토 완료', tone: 'success', icon: '✓', route: '/app/offline' },
+  HOMEWORK_EXPIRED: { label: '기한 만료', tone: 'warn', icon: '!', route: '/app/offline' },
 }
 
 function formatCreatedAt(value) {
@@ -31,25 +35,39 @@ function getRealtimeLabel(status) {
 }
 
 function NotificationRow({ item, onMarkRead, updating }) {
-  const meta = typeMeta[item.notificationType] || { label: item.notificationType, tone: 'bg-slate-100 text-slate-700' }
+  const navigate = useNavigate()
+  const meta = typeMeta[item.notificationType] || { label: item.notificationType, tone: 'info', icon: 'i' }
   const isRead = Boolean(item.isRead ?? item.read)
+  const hasRoute = Boolean(meta.route)
+
+  function handleRowClick() {
+    if (!hasRoute) return
+    navigate(meta.route)
+  }
+
   return (
-    <article className={`rounded-xl border p-4 ${isRead ? 'border-slate-200 bg-white' : 'border-[var(--brand-200)] bg-[var(--brand-50)]'}`}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${meta.tone}`}>{meta.label}</span>
-            {!isRead ? <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold text-rose-700">NEW</span> : null}
+    <article
+      className={`notif ${meta.tone} ${isRead ? 'read' : 'unread'} ${hasRoute ? 'cursor-pointer' : ''}`}
+      onClick={hasRoute ? handleRowClick : undefined}
+    >
+      <span className="n-ico">{meta.icon}</span>
+      <div className="n-body">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="n-title"><span className="dot-unread" />{item.title || meta.label}</p>
+            <p className="n-text">{item.message || '-'}</p>
+            <p className="n-time">{formatCreatedAt(item.createdAt)}</p>
           </div>
-          <p className="mt-2 text-sm font-bold text-slate-900">{item.title || '알림'}</p>
-          <p className="mt-1 text-sm leading-6 text-slate-600">{item.message || '-'}</p>
-          <p className="mt-2 text-xs text-slate-400">{formatCreatedAt(item.createdAt)}</p>
+          {!isRead ? <span className="badge badge-info">NEW</span> : null}
         </div>
         {!isRead ? (
           <button
-            className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 disabled:opacity-40"
+            className="btn btn-ghost btn-sm mt-3"
             disabled={updating}
-            onClick={() => onMarkRead(item.notificationId)}
+            onClick={(event) => {
+              event.stopPropagation()
+              onMarkRead(item.notificationId)
+            }}
             type="button"
           >
             읽음
@@ -79,17 +97,12 @@ function NotificationInboxContent({
 }) {
   return (
     <>
-      <div className="flex flex-wrap items-end justify-between gap-3" style={{ marginTop: 16 }}>
-        <div>
-          <h2 className="text-[24px] font-black tracking-tight text-slate-950">알림</h2>
-          <p className="mt-1 text-sm text-slate-400">최근 알림을 확인하고 읽음 처리할 수 있습니다.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">{getRealtimeLabel(realtimeStatus)}</span>
-          <span className="rounded-full bg-[var(--brand-50)] px-3 py-1 text-xs font-semibold text-[var(--brand-700)]">읽지 않음 {unreadCount}</span>
-          <button className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700" onClick={onRefresh} type="button">새로고침</button>
-          <button className="rounded-xl bg-[var(--brand-500)] px-3 py-2 text-xs font-semibold text-white disabled:opacity-40" disabled={batchUpdating || unreadCount === 0} onClick={onMarkAllRead} type="button">{batchUpdating ? '처리 중...' : '전체 읽음'}</button>
-        </div>
+      <div className="toolbar">
+        <span className="status"><span className="live-dot" />{getRealtimeLabel(realtimeStatus)}</span>
+        <span className="unread-stat">읽지 않음 <b>{unreadCount}</b></span>
+        <div className="spacer flex-1" />
+        <button className="btn btn-ghost btn-sm" onClick={onRefresh} type="button">새로고침</button>
+        <button className="btn btn-primary btn-sm" disabled={batchUpdating || unreadCount === 0} onClick={onMarkAllRead} type="button">{batchUpdating ? '처리 중...' : '전체 읽음'}</button>
       </div>
 
       {feedback ? <div className="stats-feedback">{feedback}</div> : null}
@@ -97,15 +110,20 @@ function NotificationInboxContent({
       {loading ? (
         <div className="stats-loading">알림을 불러오는 중입니다...</div>
       ) : (
-        <section className="mt-5 space-y-3">
-          {notifications.length ? notifications.map((item) => <NotificationRow item={item} key={item.notificationId} onMarkRead={onMarkRead} updating={updatingId === item.notificationId} />) : <div className="stats-panel">표시할 알림이 없습니다.</div>}
+        <section className="card card-pad">
+          {notifications.length ? notifications.map((item) => <NotificationRow item={item} key={item.notificationId} onMarkRead={onMarkRead} updating={updatingId === item.notificationId} />) : (
+            <div className="empty-state">
+              <div className="es-title">표시할 알림이 없습니다.</div>
+              <div className="es-sub">새로운 알림이 오면 여기에 표시됩니다.</div>
+            </div>
+          )}
         </section>
       )}
 
-      <div className="mt-4 flex items-center justify-between">
-        <button className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-700 disabled:opacity-40" disabled={pageIndex <= 0} onClick={onPrevPage} type="button">이전</button>
-        <span className="text-xs text-slate-500">{`${pageIndex + 1} / ${Math.max(1, totalPages)}`}</span>
-        <button className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-700 disabled:opacity-40" disabled={isLast} onClick={onNextPage} type="button">다음</button>
+      <div className="pager">
+        <button className="pg-btn" disabled={pageIndex <= 0} onClick={onPrevPage} type="button">이전</button>
+        <span className="pg-now">{`${pageIndex + 1} / ${Math.max(1, totalPages)}`}</span>
+        <button className="pg-btn" disabled={isLast} onClick={onNextPage} type="button">다음</button>
       </div>
     </>
   )
