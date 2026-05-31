@@ -276,11 +276,17 @@ export function ParentHomePage() {
                   <button className="link-action" onClick={() => navigate('/app/analysis')} type="button">성장 흐름 보기 ›</button>
                 </div>
                 <div className="insight">
-                  <span className="insight-icon">↗</span>
-                  <p className="txt">
-                    {expressionSummary?.encouragementMessage || '지난주보다 성공률이 11%p 올랐어요.'}
-                    <span>꾸준한 가정 연습이 잘 이어지고 있어요.</span>
-                  </p>
+                  {expressionSummary?.encouragementMessage ? (
+                    <>
+                      <span className="insight-icon">↗</span>
+                      <p className="txt">
+                        {expressionSummary.encouragementMessage}
+                        <span>꾸준한 가정 연습이 잘 이어지고 있어요.</span>
+                      </p>
+                    </>
+                  ) : (
+                    <p className="empty-message">아직 분석 데이터가 충분하지 않아요. 게임을 더 진행하면 맞춤 메시지가 생성돼요.</p>
+                  )}
                 </div>
               </article>
 

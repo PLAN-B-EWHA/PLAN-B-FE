@@ -4616,9 +4616,13 @@ textarea.input {
 }
 .thr-detail-meta-cell + .thr-detail-meta-cell { border-left: 1px solid var(--line, #e5e7eb); }
 .thr-detail-meta-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   font-size: .75rem;
   color: var(--ink-3, #9ca3af);
 }
+.thr-detail-meta-label svg { flex-shrink: 0; }
 .thr-detail-meta-cell strong {
   font-size: .92rem;
   font-weight: 700;
@@ -4657,10 +4661,13 @@ textarea.input {
 }
 .thr-detail-row:last-child { border-bottom: none; }
 .thr-detail-row-icon {
-  font-size: .85rem;
+  display: flex;
+  align-items: flex-start;
+  padding-top: 3px;
   color: var(--ink-3, #9ca3af);
-  padding-top: 2px;
+  flex-shrink: 0;
 }
+.thr-detail-row-icon svg { display: block; }
 .thr-detail-row-label {
   font-size: .82rem;
   font-weight: 600;

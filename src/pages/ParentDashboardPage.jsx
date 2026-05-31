@@ -107,12 +107,14 @@ function HighlightsCard({ weeklyHighlight }) {
     <article className="stats-panel">
       <div className="card-head"><p className="card-title">이번 주 잘한 점</p></div>
       <div className="highlight-list">
-        {(highlights.length ? highlights.slice(0, 2) : ['sad 표정을 한 번에 성공했어요.', '대화에서 연속으로 좋은 선택을 했어요.']).map((item, index) => (
+        {highlights.length > 0 ? highlights.slice(0, 2).map((item, index) => (
           <div className="insight" key={`${item}-${index}`}>
             <span className="num">{index + 1}</span>
             <p className="txt">{item}</p>
           </div>
-        ))}
+        )) : (
+          <p className="empty-message">{weeklyHighlight?.fallbackMessage || '이번 주 하이라이트 데이터가 아직 없어요.'}</p>
+        )}
       </div>
     </article>
   )
@@ -120,17 +122,24 @@ function HighlightsCard({ weeklyHighlight }) {
 
 function EncouragementCard({ expressionSummary }) {
   const topEmotions = expressionSummary?.topImprovedEmotions || []
+  const message = expressionSummary?.encouragementMessage
   return (
     <article className="stats-panel parent-encouragement-card">
       <div className="card-head"><p className="card-title">오늘의 한마디</p></div>
-      <h3>{expressionSummary?.encouragementMessage || '지난주보다 성공률이 11%p 올랐어요.'}</h3>
-      <div className="divider" />
-      <p className="sub">가장 많이 성장한 표정</p>
-      <div className="weekly-tags">
-        {(topEmotions.length ? topEmotions : ['sad', 'angry']).slice(0, 3).map((emotion) => (
-          <span className="chip chip-success" key={emotion}>{emotionLabelMap[emotion] || emotion}</span>
-        ))}
-      </div>
+      {message
+        ? <h3>{message}</h3>
+        : <p className="empty-message">아직 분석 데이터가 충분하지 않아요. 게임을 더 진행하면 맞춤 메시지가 생성돼요.</p>}
+      {topEmotions.length > 0 ? (
+        <>
+          <div className="divider" />
+          <p className="sub">가장 많이 성장한 표정</p>
+          <div className="weekly-tags">
+            {topEmotions.slice(0, 3).map((emotion) => (
+              <span className="chip chip-success" key={emotion}>{emotionLabelMap[emotion] || emotion}</span>
+            ))}
+          </div>
+        </>
+      ) : null}
     </article>
   )
 }

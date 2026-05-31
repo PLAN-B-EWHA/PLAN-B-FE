@@ -3,7 +3,8 @@ import { TherapistStatsShell } from '../components/TherapistStatsShell'
 import { useAuth } from '../contexts/AuthContext'
 import { apiFetch, extractApiErrorMessage, extractApiPayload } from '../lib/api'
 import { MissionCalendar } from '../lib/MissionCalendar'
-import { calculateAgeLabel, getGenderLabel, resolveUploadUrl } from '../lib/childUtils'
+import { calculateAgeLabel, canAssignMission, getGenderLabel, resolveUploadUrl } from '../lib/childUtils'
+import { IconCalendar, IconChat, IconCheckbox, IconList, IconPerson, IconSliders, IconStatus, IconTarget } from '../lib/MissionIcons'
 
 // ── 상수 ──────────────────────────────────────────────────────────────────────
 
@@ -143,7 +144,7 @@ function MissionIconBubble({ status }) {
 
 function MissionItem({ item, onSelect }) {
   const cfg = getStatusCfg(item.status)
-  const hasReport = Boolean(item.report)
+  const pendingReview = item.status === 'SUBMITTED'
   return (
     <button className="ms-list-item" onClick={onSelect} type="button">
       <MissionIconBubble status={item.status} />
@@ -151,7 +152,7 @@ function MissionItem({ item, onSelect }) {
         <span className="ms-list-week">W{item.week || '-'}</span>
         <strong className="ms-list-title">{strategyLabel(item)}</strong>
         <span className="ms-list-date">📅 마감일 · {formatDate(item.dueDate)}</span>
-        {hasReport ? <span className={`ms-dot-badge ms-dot-warn thr-sub-badge`}>● 검토 대기 중</span> : null}
+        {pendingReview ? <span className="ms-dot-badge ms-dot-warn thr-sub-badge">● 검토 대기 중</span> : null}
       </div>
       <div className="ms-list-right">
         <span className={`ms-dot-badge ms-dot-${cfg.color}`}>● {cfg.label}</span>
@@ -468,21 +469,21 @@ function ParsedStrategyView({ parsed, instruction }) {
       ) : null}
       {parsed?.goal ? (
         <div className="thr-detail-row">
-          <span className="thr-detail-row-icon">⊙</span>
+          <span className="thr-detail-row-icon"><IconTarget /></span>
           <span className="thr-detail-row-label">목표</span>
           <p className="thr-detail-row-content">{parsed.goal}</p>
         </div>
       ) : null}
       {parsed?.parentGuide ? (
         <div className="thr-detail-row">
-          <span className="thr-detail-row-icon">♀</span>
+          <span className="thr-detail-row-icon"><IconPerson /></span>
           <span className="thr-detail-row-label">보호자 안내</span>
           <p className="thr-detail-row-content">{parsed.parentGuide}</p>
         </div>
       ) : null}
       {parsed?.scriptSentence ? (
         <div className="thr-detail-row">
-          <span className="thr-detail-row-icon">◯</span>
+          <span className="thr-detail-row-icon"><IconChat /></span>
           <span className="thr-detail-row-label">말해줄 문장</span>
           <div className="thr-detail-bubble">
             <span className="thr-detail-bubble-tag">아이에게</span>
@@ -492,7 +493,7 @@ function ParsedStrategyView({ parsed, instruction }) {
       ) : null}
       {parsed?.steps?.length > 0 ? (
         <div className="thr-detail-row">
-          <span className="thr-detail-row-icon">≡</span>
+          <span className="thr-detail-row-icon"><IconList /></span>
           <span className="thr-detail-row-label">수행 방법</span>
           <ol className="thr-detail-steps">
             {parsed.steps.map((s, i) => <li key={i}>{s}</li>)}
@@ -501,7 +502,7 @@ function ParsedStrategyView({ parsed, instruction }) {
       ) : null}
       {parsed?.checkpoints?.length > 0 ? (
         <div className="thr-detail-row">
-          <span className="thr-detail-row-icon">✓</span>
+          <span className="thr-detail-row-icon"><IconCheckbox /></span>
           <span className="thr-detail-row-label">관찰 체크포인트</span>
           <ul className="thr-detail-steps thr-detail-steps-check">
             {parsed.checkpoints.map((c, i) => <li key={i}>{c}</li>)}
@@ -510,7 +511,7 @@ function ParsedStrategyView({ parsed, instruction }) {
       ) : null}
       {(parsed?.easyAdjust || parsed?.hardAdjust) ? (
         <div className="thr-detail-row">
-          <span className="thr-detail-row-icon">⚙</span>
+          <span className="thr-detail-row-icon"><IconSliders /></span>
           <span className="thr-detail-row-label">난이도 조절</span>
           <div>
             {parsed.easyAdjust ? <p className="thr-detail-row-content thr-adjust easy">쉽게: {parsed.easyAdjust}</p> : null}
@@ -629,15 +630,15 @@ function DetailModal({ mission, onClose, onReview }) {
           {/* 3-col 메타 */}
           <div className="thr-detail-meta">
             <div className="thr-detail-meta-cell">
-              <span className="thr-detail-meta-label">⊙ 연습 목표</span>
+              <span className="thr-detail-meta-label"><IconTarget size={13} /> 연습 목표</span>
               <strong>{strategyLabel(mission)}</strong>
             </div>
             <div className="thr-detail-meta-cell">
-              <span className="thr-detail-meta-label">📅 마감일</span>
+              <span className="thr-detail-meta-label"><IconCalendar size={13} /> 마감일</span>
               <strong>{formatDate(mission.dueDate)}</strong>
             </div>
             <div className="thr-detail-meta-cell">
-              <span className="thr-detail-meta-label">⊘ 상태</span>
+              <span className="thr-detail-meta-label"><IconStatus size={13} /> 상태</span>
               <strong>{cfg.label}</strong>
             </div>
           </div>
@@ -681,7 +682,7 @@ function DetailModal({ mission, onClose, onReview }) {
 
 // ── 검토 모달 ──────────────────────────────────────────────────────────────────
 
-function ReviewModal({ mission, reviewComment, setReviewComment, submitting, onCancel, onConfirm }) {
+function ReviewModal({ error, mission, reviewComment, setReviewComment, submitting, onCancel, onConfirm }) {
   if (!mission) return null
   return (
     <div className="overlay">
@@ -692,6 +693,7 @@ function ReviewModal({ mission, reviewComment, setReviewComment, submitting, onC
           <p className="modal-meta">W{mission.week || '-'} · {strategyLabel(mission)}</p>
         </div>
         <div className="modal-body">
+          {error ? <div className="stats-feedback mb-4">{error}</div> : null}
           {mission.report ? (
             <div className="offline-review-note mb-4">
               <p>완료 정도: <strong>{completionLabelMap[mission.report.completed] || '-'}</strong></p>
@@ -726,6 +728,7 @@ export function TherapistOfflinePage() {
   const [detailMission, setDetailMission] = useState(null)
   const [reviewTarget, setReviewTarget] = useState(null)
   const [reviewComment, setReviewComment] = useState('')
+  const [reviewError, setReviewError] = useState('')
   const [generateInput, setGenerateInput] = useState(emptyGenerateInput)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [generatedMission, setGeneratedMission] = useState(null)
@@ -760,7 +763,8 @@ export function TherapistOfflinePage() {
       try {
         const res = await apiFetch('/children/accessible', { method: 'GET', token: accessToken })
         const payload = extractApiPayload(res) || []
-        if (!ignore) { setChildren(payload); setSelectedChildId(payload[0]?.childId || null) }
+        const missionChildren = payload.filter(canAssignMission)
+        if (!ignore) { setChildren(missionChildren); setSelectedChildId(missionChildren[0]?.childId || null) }
       } catch (error) {
         if (!ignore) setFeedback(extractApiErrorMessage(error))
       }
@@ -851,6 +855,7 @@ export function TherapistOfflinePage() {
   async function handleReviewConfirm() {
     if (!selectedChildId || !reviewTarget) return
     setSubmitting(true)
+    setReviewError('')
     try {
       await apiFetch(`/therapist/children/${selectedChildId}/homework/${missionId(reviewTarget)}/review`, {
         method: 'PATCH', token: accessToken, body: { reviewComment: reviewComment || null },
@@ -859,7 +864,7 @@ export function TherapistOfflinePage() {
       await loadData()
       setFeedback('미션 검토를 완료했습니다.')
     } catch (error) {
-      setFeedback(extractApiErrorMessage(error))
+      setReviewError(extractApiErrorMessage(error))
     } finally {
       setSubmitting(false)
     }
@@ -869,6 +874,7 @@ export function TherapistOfflinePage() {
     setDetailMission(null)
     setReviewTarget(mission)
     setReviewComment(mission?.report?.therapistReviewComment || '')
+    setReviewError('')
   }
 
   return (
@@ -1007,7 +1013,7 @@ export function TherapistOfflinePage() {
 
       <DetailModal mission={detailMission} onClose={() => setDetailMission(null)} onReview={openReview} />
       <GeneratedMissionModal draft={generatedDraft} mission={generatedMission} onCancel={handleCancelGenerated} onPublish={handlePublishGenerated} setDraft={setGeneratedDraft} submitting={submitting} />
-      <ReviewModal mission={reviewTarget} onCancel={() => { setReviewTarget(null); setReviewComment('') }} onConfirm={handleReviewConfirm} reviewComment={reviewComment} setReviewComment={setReviewComment} submitting={submitting} />
+      <ReviewModal error={reviewError} mission={reviewTarget} onCancel={() => { setReviewTarget(null); setReviewComment(''); setReviewError('') }} onConfirm={handleReviewConfirm} reviewComment={reviewComment} setReviewComment={setReviewComment} submitting={submitting} />
     </TherapistStatsShell>
   )
 }

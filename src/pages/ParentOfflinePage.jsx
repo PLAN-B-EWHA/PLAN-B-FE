@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { apiFetch, extractApiErrorMessage, extractApiPayload } from '../lib/api'
 import { MissionCalendar } from '../lib/MissionCalendar'
 import { calculateAgeLabel, getGenderLabel } from '../lib/childUtils'
+import { IconCalendar, IconChat, IconCheckbox, IconList, IconPerson, IconSliders, IconStatus, IconTarget } from '../lib/MissionIcons'
 
 const pageTabs = [
   { id: 'today', label: '오늘 할 미션' },
@@ -318,53 +319,162 @@ function ReportModal({ mission, form, setForm, submitting, onSubmit, onClose }) 
   )
 }
 
-// ── 미션 상세 모달
+// ── LLM 응답 파서
+function parseStrategyTip(text) {
+  if (!text) return null
+  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean)
+  const result = { missionName: null, goal: null, parentGuide: null, scriptSentence: null, steps: [], checkpoints: [], easyAdjust: null, hardAdjust: null }
+  let section = null
+  const FIELDS = [
+    ['미션 이름', 'missionName'], ['목표', 'goal'], ['보호자 안내', 'parentGuide'],
+    ['아이에게 말해줄 문장', 'scriptSentence'], ['쉽게 조절하기', 'easyAdjust'], ['어렵게 조절하기', 'hardAdjust'],
+  ]
+  const LIST_FIELDS = { '수행 방법': 'steps', '관찰 체크포인트': 'checkpoints' }
+  for (const line of lines) {
+    let matched = false
+    for (const [label, key] of FIELDS) {
+      if (line.startsWith(`${label}:`)) { result[key] = line.slice(label.length + 1).trim(); section = null; matched = true; break }
+    }
+    if (matched) continue
+    for (const [label, key] of Object.entries(LIST_FIELDS)) {
+      if (line.startsWith(`${label}:`)) { section = key; matched = true; break }
+    }
+    if (matched) continue
+    if (line.startsWith('- ') && section) result[section].push(line.slice(2).trim())
+  }
+  const hasContent = Object.values(result).some((v) => (Array.isArray(v) ? v.length > 0 : v !== null))
+  return hasContent ? result : null
+}
+
+// ── 파싱된 미션 가이드 뷰
+function ParsedStrategyView({ parsed, instruction }) {
+  if (!parsed && !instruction) return null
+  return (
+    <div className="thr-parsed-view">
+      {instruction ? (
+        <div className="thr-detail-instruction">
+          <p className="thr-detail-instruction-label">생성 지시 / 미션 안내</p>
+          <p>{instruction}</p>
+        </div>
+      ) : null}
+      {parsed?.goal ? (
+        <div className="thr-detail-row">
+          <span className="thr-detail-row-icon"><IconTarget /></span>
+          <span className="thr-detail-row-label">목표</span>
+          <p className="thr-detail-row-content">{parsed.goal}</p>
+        </div>
+      ) : null}
+      {parsed?.parentGuide ? (
+        <div className="thr-detail-row">
+          <span className="thr-detail-row-icon"><IconPerson /></span>
+          <span className="thr-detail-row-label">보호자 안내</span>
+          <p className="thr-detail-row-content">{parsed.parentGuide}</p>
+        </div>
+      ) : null}
+      {parsed?.scriptSentence ? (
+        <div className="thr-detail-row">
+          <span className="thr-detail-row-icon"><IconChat /></span>
+          <span className="thr-detail-row-label">말해줄 문장</span>
+          <div className="thr-detail-bubble">
+            <span className="thr-detail-bubble-tag">아이에게</span>
+            <p>{parsed.scriptSentence}</p>
+          </div>
+        </div>
+      ) : null}
+      {parsed?.steps?.length > 0 ? (
+        <div className="thr-detail-row">
+          <span className="thr-detail-row-icon"><IconList /></span>
+          <span className="thr-detail-row-label">수행 방법</span>
+          <ol className="thr-detail-steps">
+            {parsed.steps.map((s, i) => <li key={i}>{s}</li>)}
+          </ol>
+        </div>
+      ) : null}
+      {parsed?.checkpoints?.length > 0 ? (
+        <div className="thr-detail-row">
+          <span className="thr-detail-row-icon"><IconCheckbox /></span>
+          <span className="thr-detail-row-label">관찰 체크포인트</span>
+          <ul className="thr-detail-steps thr-detail-steps-check">
+            {parsed.checkpoints.map((c, i) => <li key={i}>{c}</li>)}
+          </ul>
+        </div>
+      ) : null}
+      {(parsed?.easyAdjust || parsed?.hardAdjust) ? (
+        <div className="thr-detail-row">
+          <span className="thr-detail-row-icon"><IconSliders /></span>
+          <span className="thr-detail-row-label">난이도 조절</span>
+          <div>
+            {parsed.easyAdjust ? <p className="thr-detail-row-content thr-adjust easy">쉽게: {parsed.easyAdjust}</p> : null}
+            {parsed.hardAdjust ? <p className="thr-detail-row-content thr-adjust hard">어렵게: {parsed.hardAdjust}</p> : null}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+// ── 미션 상세 모달 (치료사 스타일)
 function DetailModal({ mission, onClose, onRecord }) {
   if (!mission) return null
+  const cfg = getStatusCfg(mission.status)
   const canRecord = mission.status === 'PENDING' || mission.status === 'SUBMITTED'
-  const subtitle = mission.missionSubtitle || mission.description || mission.missionFocusLabel || ''
+  const parsed = parseStrategyTip(mission.strategyTip)
 
   return (
-    <div className="overlay">
-      <div className="modal ms-detail-modal">
-        <div className="ms-detail-head">
-          <div className="ms-detail-badges">
-            <span className="chip chip-info">이번 주 미션 · W{mission.week || '-'}</span>
-            <StatusDotBadge status={mission.status} />
+    <div className="overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="thr-detail-modal">
+
+        {/* 헤더 */}
+        <div className="thr-detail-head">
+          <div className="thr-detail-chips">
+            <span className="chip chip-info">W{mission.week || '-'} · {strategyLabel(mission)}</span>
+            <span className={`ms-dot-badge ms-dot-${cfg.color}`}>● {cfg.label}</span>
           </div>
-          <button aria-label="닫기" className="modal-close" onClick={onClose} type="button">×</button>
+          <button aria-label="닫기" className="thr-detail-close" onClick={onClose} type="button">×</button>
         </div>
-        <div className="ms-detail-body">
-          <h2 className="ms-detail-title">{strategyLabel(mission)}</h2>
-          {subtitle ? <p className="ms-detail-sub">미션 · {subtitle}</p> : null}
 
-          <MetaInfoGrid items={[
-            { icon: '⊙', label: '연습 목표', value: strategyLabel(mission) },
-            { icon: '📅', label: '마감일', value: formatDate(mission.dueDate) },
-            { icon: '○', label: '상태', value: getStatusCfg(mission.status).label },
-          ]} />
+        {/* 본문 */}
+        <div className="thr-detail-body">
+          <h2 className="thr-detail-title">{parsed?.missionName || strategyLabel(mission)}</h2>
+          <p className="thr-detail-sub">미션 · {formatDate(mission.dueDate)} 마감</p>
 
-          {mission.instruction ? (
-            <div className="ms-instruction-box">
-              <p className="ms-instruction-label">오늘의 미션</p>
-              <p>{mission.instruction}</p>
+          {/* 3-col 메타 */}
+          <div className="thr-detail-meta">
+            <div className="thr-detail-meta-cell">
+              <span className="thr-detail-meta-label"><IconTarget size={13} /> 연습 목표</span>
+              <strong>{strategyLabel(mission)}</strong>
             </div>
-          ) : null}
+            <div className="thr-detail-meta-cell">
+              <span className="thr-detail-meta-label"><IconCalendar size={13} /> 마감일</span>
+              <strong>{formatDate(mission.dueDate)}</strong>
+            </div>
+            <div className="thr-detail-meta-cell">
+              <span className="thr-detail-meta-label"><IconStatus size={13} /> 상태</span>
+              <strong>{cfg.label}</strong>
+            </div>
+          </div>
 
-          <MissionGuide mission={mission} />
+          {/* 파싱된 미션 가이드 */}
+          <ParsedStrategyView
+            instruction={mission.instruction || null}
+            parsed={parsed}
+          />
 
+          {/* 치료사 피드백 */}
           {mission.report?.therapistReviewComment ? (
-            <div className="offline-review-note mt-4">
-              <p className="section-kicker">치료사 피드백</p>
+            <div className="thr-detail-report success" style={{ marginTop: 14 }}>
+              <p className="thr-detail-report-label">치료사 피드백</p>
               <p>{mission.report.therapistReviewComment}</p>
             </div>
           ) : null}
         </div>
-        <div className="modal-actions">
+
+        {/* 푸터 */}
+        <div className="thr-detail-footer">
           <button className="btn btn-ghost" onClick={onClose} type="button">닫기</button>
           {canRecord ? (
-            <button className="btn btn-primary" onClick={() => onRecord(mission)} type="button">
-              {mission.report ? '결과 보기' : '수행 기록 남기기'}
+            <button className="btn btn-primary" onClick={() => { onClose(); onRecord(mission) }} type="button">
+              {mission.report ? '수행 기록 수정' : '수행 기록 남기기'}
             </button>
           ) : null}
         </div>

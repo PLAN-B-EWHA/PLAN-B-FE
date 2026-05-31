@@ -1,15 +1,17 @@
 /**
  * LLM 출력용 간이 마크다운 렌더러.
  * 외부 라이브러리 없이 LLM이 자주 쓰는 패턴만 처리합니다.
- *   # ~ ### 헤딩 / **bold** / - · * 불릿 / 1. 번호 목록 / --- 구분선 / 빈 줄 단락
+ *   # ~ #### 헤딩 / **bold** / *italic* / `code` /
+ *   - · * 불릿 / 1. 번호 목록 / --- 구분선 / 빈 줄 단락
  */
 
 function parseLine(line) {
-  // **bold** 처리
-  return line.split(/(\*\*[^*]+\*\*)/g).map((part, i) => {
-    if (part.startsWith('**') && part.endsWith('**')) {
-      return <strong key={i}>{part.slice(2, -2)}</strong>
-    }
+  // **bold**, *italic*, `code` 인라인 처리
+  const parts = line.split(/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g)
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) return <strong key={i}>{part.slice(2, -2)}</strong>
+    if (part.startsWith('*') && part.endsWith('*')) return <em key={i}>{part.slice(1, -1)}</em>
+    if (part.startsWith('`') && part.endsWith('`')) return <code key={i} className="rounded bg-slate-100 px-1 py-0.5 text-[11px] font-mono text-slate-700">{part.slice(1, -1)}</code>
     return part
   })
 }
@@ -65,14 +67,20 @@ export function MarkdownView({ content, className = '' }) {
       continue
     }
 
-    // 헤딩
-    const h1 = trimmed.match(/^#\s+(.+)/)
-    const h2 = trimmed.match(/^##\s+(.+)/)
-    const h3 = trimmed.match(/^###\s+(.+)/)
+    // 헤딩 — 긴 것부터 체크해야 ####이 ###에 걸리지 않음
+    const h4 = trimmed.match(/^#{4}\s+(.+)/)
+    const h3 = !h4 && trimmed.match(/^#{3}\s+(.+)/)
+    const h2 = !h4 && !h3 && trimmed.match(/^#{2}\s+(.+)/)
+    const h1 = !h4 && !h3 && !h2 && trimmed.match(/^#\s+(.+)/)
 
+    if (h4) {
+      flushBullets(); flushOrdered()
+      elements.push(<h4 key={key++} className="mt-5 mb-1 text-sm font-bold text-slate-700 border-b border-slate-100 pb-1">{parseLine(h4[1])}</h4>)
+      continue
+    }
     if (h3) {
       flushBullets(); flushOrdered()
-      elements.push(<h3 key={key++} className="mt-5 mb-1 text-sm font-black text-slate-800">{parseLine(h3[1])}</h3>)
+      elements.push(<h3 key={key++} className="mt-6 mb-1 text-sm font-black text-slate-800">{parseLine(h3[1])}</h3>)
       continue
     }
     if (h2) {

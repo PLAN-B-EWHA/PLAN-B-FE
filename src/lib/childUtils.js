@@ -89,3 +89,8 @@ export function canViewReport(child) {
   const permissions = child?.myPermissions || []
   return child?.isPrimaryParent || permissions.includes('VIEW_REPORT')
 }
+
+export function canAssignMission(child) {
+  const permissions = child?.myPermissions || []
+  return child?.isPrimaryParent || permissions.includes('ASSIGN_MISSION') || permissions.includes('MANAGE')
+}
