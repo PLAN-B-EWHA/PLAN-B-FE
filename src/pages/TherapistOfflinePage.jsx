@@ -889,7 +889,7 @@ export function TherapistOfflinePage() {
             ) : null}
             <select
               className="ms-student-select"
-              onChange={(e) => setSelectedChildId(Number(e.target.value))}
+              onChange={(e) => setSelectedChildId(e.target.value)}
               value={selectedChildId ?? ''}
             >
               {children.map((child) => (
