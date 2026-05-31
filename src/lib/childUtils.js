@@ -84,3 +84,8 @@ export function resolveUploadUrl(url) {
 
   return resolveApiUrl(url, { skipApiPrefix: true })
 }
+
+export function canViewReport(child) {
+  const permissions = child?.myPermissions || []
+  return child?.isPrimaryParent || permissions.includes('VIEW_REPORT')
+}

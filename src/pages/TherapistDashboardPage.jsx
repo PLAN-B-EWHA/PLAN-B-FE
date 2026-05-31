@@ -4,7 +4,7 @@ import { useLocation } from 'react-router-dom'
 import { TherapistStatsShell } from '../components/TherapistStatsShell'
 import { useAuth } from '../contexts/AuthContext'
 import { apiFetch, extractApiErrorMessage, extractApiPayload } from '../lib/api'
-import { calculateAgeLabel, getGenderLabel, resolveUploadUrl } from '../lib/childUtils'
+import { calculateAgeLabel, canViewReport, getGenderLabel, resolveUploadUrl } from '../lib/childUtils'
 
 const emotionLabelMap = {
   happy: '기쁨',
@@ -643,9 +643,10 @@ export function TherapistDashboardPage() {
       try {
         const response = await apiFetch('/children/accessible', { method: 'GET', token: accessToken })
         const payload = extractApiPayload(response) || []
+        const reportableChildren = payload.filter(canViewReport)
         if (!ignore) {
-          setChildren(payload)
-          setSelectedChildId(payload[0]?.childId || null)
+          setChildren(reportableChildren)
+          setSelectedChildId(reportableChildren[0]?.childId || null)
         }
       } catch (error) {
         if (!ignore) setFeedback(extractApiErrorMessage(error))
