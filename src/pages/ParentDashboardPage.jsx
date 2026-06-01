@@ -263,7 +263,7 @@ export function ParentDashboardPage() {
     async function loadChildren() {
       if (!accessToken) { setLoading(false); return }
       try {
-        const response = await apiFetch('/children/my', { method: 'GET', token: accessToken })
+        const response = await apiFetch('/children/accessible', { method: 'GET', token: accessToken })
         const payload = extractApiPayload(response) || []
         if (!ignore) {
           setChildren(payload)

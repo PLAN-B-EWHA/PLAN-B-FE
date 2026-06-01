@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { TherapistStatsShell } from '../components/TherapistStatsShell'
 import { useAuth } from '../contexts/AuthContext'
 import { apiFetch, extractApiErrorMessage, extractApiPayload } from '../lib/api'
-import { canViewReport } from '../lib/childUtils'
+import { canAssignMission } from '../lib/childUtils'
 
 const dayLabels = ['월', '화', '수', '목', '금', '토', '일']
 
@@ -102,10 +102,9 @@ export function TherapistHomePage() {
       try {
         const response = await apiFetch('/children/accessible', { method: 'GET', token: accessToken })
         const payload = extractApiPayload(response) || []
-        const reportableChildren = payload.filter(canViewReport)
         if (!ignore) {
-          setChildren(reportableChildren)
-          setSelectedChildId(reportableChildren[0]?.childId || null)
+          setChildren(payload)
+          setSelectedChildId(payload[0]?.childId || null)
           setFeedback('')
         }
       } catch (error) {
@@ -129,16 +128,17 @@ export function TherapistHomePage() {
         return
       }
       try {
+        const canLoadHomework = canAssignMission(selectedChild)
         const [expressionRes, dialogueRes, missionRes, participationRes] = await Promise.all([
           apiFetch(`/therapist/children/${selectedChildId}/expression/summary`, { method: 'GET', token: accessToken }),
           apiFetch(`/therapist/children/${selectedChildId}/dialogue/summary`, { method: 'GET', token: accessToken }),
-          apiFetch(`/therapist/children/${selectedChildId}/homework/summary`, { method: 'GET', token: accessToken }),
+          canLoadHomework ? apiFetch(`/therapist/children/${selectedChildId}/homework/summary`, { method: 'GET', token: accessToken }) : Promise.resolve(null),
           apiFetch(`/therapist/children/${selectedChildId}/weekly-participation`, { method: 'GET', token: accessToken }),
         ])
         if (!ignore) {
           setExpressionSummary(extractApiPayload(expressionRes))
           setDialogueSummary(extractApiPayload(dialogueRes) || [])
-          setMissionSummary(extractApiPayload(missionRes))
+          setMissionSummary(missionRes ? extractApiPayload(missionRes) : null)
           setWeeklyParticipation(extractApiPayload(participationRes) || null)
           setFeedback('')
         }
@@ -152,7 +152,7 @@ export function TherapistHomePage() {
     }
     loadHomeStats()
     return () => { ignore = true }
-  }, [accessToken, selectedChildId])
+  }, [accessToken, selectedChildId, selectedChild])
 
   const lowSuccessCount = useMemo(
     () => (expressionSummary?.emotions || []).filter((item) => item.dataReady && item.successRate < 0.5).length,

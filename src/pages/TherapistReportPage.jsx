@@ -3,6 +3,7 @@ import { TherapistStatsShell } from '../components/TherapistStatsShell'
 import { useAuth } from '../contexts/AuthContext'
 import { apiFetch, extractApiErrorMessage, extractApiPayload } from '../lib/api'
 import { MarkdownView } from '../lib/MarkdownView'
+import { canAssignMission, canViewReport } from '../lib/childUtils'
 
 const statusTabs = [
   { value: '', label: '전체' },
@@ -344,6 +345,8 @@ export function TherapistReportPage() {
   const [feedback, setFeedback] = useState('')
 
   const selectedChild = useMemo(() => children.find((c) => c.childId === selectedChildId) || null, [children, selectedChildId])
+  const canReadSelectedReports = canViewReport(selectedChild)
+  const canManageSelectedReports = canAssignMission(selectedChild)
 
   useEffect(() => {
     let ignore = false
@@ -352,9 +355,10 @@ export function TherapistReportPage() {
       try {
         const res = await apiFetch('/children/accessible', { method: 'GET', token: accessToken })
         const payload = extractApiPayload(res) || []
+        const reportChildren = payload.filter((child) => canViewReport(child) || canAssignMission(child))
         if (!ignore) {
-          setChildren(payload)
-          setSelectedChildId(payload[0]?.childId || null)
+          setChildren(reportChildren)
+          setSelectedChildId(reportChildren[0]?.childId || null)
         }
       } catch (error) {
         if (!ignore) setFeedback(extractApiErrorMessage(error))
@@ -368,6 +372,11 @@ export function TherapistReportPage() {
 
   async function loadReports(preferredId) {
     if (!accessToken || !selectedChildId) return
+    if (selectedChild && !canViewReport(selectedChild)) {
+      setReports([])
+      setLoading(false)
+      return
+    }
     setLoading(true)
     try {
       const query = statusFilter ? `?status=${statusFilter}&size=50` : '?size=50'
@@ -389,10 +398,10 @@ export function TherapistReportPage() {
   useEffect(() => {
     loadReports(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accessToken, selectedChildId, statusFilter])
+  }, [accessToken, selectedChildId, statusFilter, selectedChild])
 
   async function handleGenerate() {
-    if (!selectedChildId || !generateInput.request.trim()) return
+    if (!selectedChildId || !canManageSelectedReports || !generateInput.request.trim()) return
     setSubmitting(true)
     setFeedback('')
     try {
@@ -420,7 +429,7 @@ export function TherapistReportPage() {
   }
 
   async function handleEditConfirm(title, content) {
-    if (!selectedChildId || !editTarget) return
+    if (!selectedChildId || !canManageSelectedReports || !editTarget) return
     setSubmitting(true)
     try {
       const url = editMode === 'review'
@@ -439,7 +448,7 @@ export function TherapistReportPage() {
   }
 
   async function handlePublish(report) {
-    if (!selectedChildId) return
+    if (!selectedChildId || !canManageSelectedReports) return
     setSubmitting(true)
     try {
       const res = await apiFetch(`/therapist/children/${selectedChildId}/reports/${report.reportId}/publish`, { method: 'PATCH', token: accessToken })
@@ -455,7 +464,7 @@ export function TherapistReportPage() {
   }
 
   async function handleArchive(report) {
-    if (!selectedChildId) return
+    if (!selectedChildId || !canManageSelectedReports) return
     if (!window.confirm('이 리포트를 아카이브하면 보호자에게 표시되지 않습니다. 계속하시겠습니까?')) return
     setSubmitting(true)
     try {
@@ -497,8 +506,11 @@ export function TherapistReportPage() {
       </Card>
 
       <div className="child-selector mt-4">
-        {[{ id: 'list', label: '리포트 목록' }, { id: 'generate', label: '초안 생성' }].map((tab) => (
-          <button className={`child-pill ${pageTab === tab.id ? 'active' : ''}`} key={tab.id} onClick={() => setPageTab(tab.id)} type="button">
+        {[
+          { id: 'list', label: '리포트 목록', disabled: !canReadSelectedReports },
+          { id: 'generate', label: '초안 생성', disabled: !canManageSelectedReports },
+        ].map((tab) => (
+          <button className={`child-pill ${pageTab === tab.id ? 'active' : ''}`} disabled={tab.disabled} key={tab.id} onClick={() => setPageTab(tab.id)} type="button">
             {tab.label}
           </button>
         ))}
@@ -506,7 +518,15 @@ export function TherapistReportPage() {
 
       {loading ? <div className="stats-loading">리포트를 불러오는 중입니다...</div> : null}
 
-      {!loading && pageTab === 'list' ? (
+      {!loading && pageTab === 'list' && !canReadSelectedReports ? (
+        <Card className="mt-4">
+          <div className="mt-4 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-5 py-10 text-center text-sm text-slate-500">
+            선택한 아동의 리포트 조회 권한이 없습니다.
+          </div>
+        </Card>
+      ) : null}
+
+      {!loading && pageTab === 'list' && canReadSelectedReports ? (
         <Card className="mt-4">
           <div className="panel-head">
             <p>리포트 목록</p>
@@ -535,7 +555,7 @@ export function TherapistReportPage() {
         </Card>
       ) : null}
 
-      {!loading && pageTab === 'generate' ? (
+      {!loading && pageTab === 'generate' && canManageSelectedReports ? (
         <div className="mt-4">
           <GenerateForm
             input={generateInput}

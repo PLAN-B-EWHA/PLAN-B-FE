@@ -3,7 +3,7 @@ import { ParentShell } from '../components/ParentShell'
 import { useAuth } from '../contexts/AuthContext'
 import { apiFetch, extractApiErrorMessage, extractApiPayload } from '../lib/api'
 import { MissionCalendar } from '../lib/MissionCalendar'
-import { calculateAgeLabel, getGenderLabel } from '../lib/childUtils'
+import { calculateAgeLabel, canWriteNote, getGenderLabel } from '../lib/childUtils'
 import { IconCalendar, IconChat, IconCheckbox, IconList, IconPerson, IconSliders, IconStatus, IconTarget } from '../lib/MissionIcons'
 
 const pageTabs = [
@@ -522,9 +522,10 @@ export function ParentOfflinePage() {
     async function loadChildren() {
       if (!accessToken) { setLoading(false); return }
       try {
-        const res = await apiFetch('/children/my', { method: 'GET', token: accessToken })
+        const res = await apiFetch('/children/accessible', { method: 'GET', token: accessToken })
         const payload = extractApiPayload(res) || []
-        if (!ignore) { setChildren(payload); setSelectedChildId(payload[0]?.childId || null) }
+        const noteChildren = payload.filter(canWriteNote)
+        if (!ignore) { setChildren(noteChildren); setSelectedChildId(noteChildren[0]?.childId || null) }
       } catch (error) {
         if (!ignore) setFeedback(extractApiErrorMessage(error))
       }

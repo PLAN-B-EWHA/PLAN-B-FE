@@ -3,7 +3,7 @@ import { ParentShell } from '../components/ParentShell'
 import { TherapistStatsShell } from '../components/TherapistStatsShell'
 import { useAuth } from '../contexts/AuthContext'
 import { apiFetch, extractApiErrorMessage, extractApiPayload } from '../lib/api'
-import { calculateAgeLabel } from '../lib/childUtils'
+import { calculateAgeLabel, canPlayGame } from '../lib/childUtils'
 
 // ─── 설정 가능한 알림 (GET /notifications/preferences 반환 타입) ───
 // 백엔드 NotificationPreferenceType: COMMENT_ADDED | WEEKLY_SUMMARY | CHILD_INACTIVE
@@ -116,9 +116,8 @@ function GameChildSelector({ isTherapist, accessToken }) {
     async function load() {
       setLoading(true)
       try {
-        const childrenPath = isTherapist ? '/children/accessible' : '/children/my'
         const [childrenRes, selectionRes] = await Promise.allSettled([
-          apiFetch(childrenPath, { method: 'GET', token: accessToken }),
+          apiFetch('/children/accessible', { method: 'GET', token: accessToken }),
           apiFetch('/unity/selected-child', { method: 'GET', token: accessToken }),
         ])
 
@@ -126,7 +125,7 @@ function GameChildSelector({ isTherapist, accessToken }) {
 
         if (childrenRes.status === 'fulfilled') {
           const raw = extractApiPayload(childrenRes.value) || []
-          setChildren(Array.isArray(raw) ? raw : (raw?.content || []))
+          setChildren((Array.isArray(raw) ? raw : (raw?.content || [])).filter(canPlayGame))
         }
         if (selectionRes.status === 'fulfilled') {
           const sel = extractApiPayload(selectionRes.value)

@@ -4,7 +4,7 @@ import { useLocation } from 'react-router-dom'
 import { TherapistStatsShell } from '../components/TherapistStatsShell'
 import { useAuth } from '../contexts/AuthContext'
 import { apiFetch, extractApiErrorMessage, extractApiPayload } from '../lib/api'
-import { calculateAgeLabel, canViewReport, getGenderLabel, resolveUploadUrl } from '../lib/childUtils'
+import { calculateAgeLabel, getGenderLabel, resolveUploadUrl } from '../lib/childUtils'
 
 const emotionLabelMap = {
   happy: '기쁨',
@@ -88,6 +88,22 @@ function getActiveNavId(pathname) {
   if (pathname.startsWith('/app/alerts')) return 'alerts'
   if (pathname.startsWith('/app/settings')) return 'settings'
   return 'home'
+}
+
+function getAnalysisErrorMessage(error) {
+  const message = extractApiErrorMessage(error)
+  const errorCode = error?.payload?.errorCode
+  const isPermissionError =
+    error?.status === 401 ||
+    error?.status === 403 ||
+    errorCode === 'AUTH_FAILED' ||
+    errorCode === 'ACCESS_DENIED' ||
+    /invalid email or password/i.test(message) ||
+    /permission|access|권한/.test(message)
+
+  return isPermissionError
+    ? '해당 아동에 대한 접근 권한이 없습니다. 학생 관리에서 권한을 확인해 주세요.'
+    : message
 }
 
 function ChildAvatar({ child, large = false }) {
@@ -643,13 +659,12 @@ export function TherapistDashboardPage() {
       try {
         const response = await apiFetch('/children/accessible', { method: 'GET', token: accessToken })
         const payload = extractApiPayload(response) || []
-        const reportableChildren = payload.filter(canViewReport)
         if (!ignore) {
-          setChildren(reportableChildren)
-          setSelectedChildId(reportableChildren[0]?.childId || null)
+          setChildren(payload)
+          setSelectedChildId(payload[0]?.childId || null)
         }
       } catch (error) {
-        if (!ignore) setFeedback(extractApiErrorMessage(error))
+        if (!ignore) setFeedback(getAnalysisErrorMessage(error))
       } finally {
         if (!ignore) setLoadingChildren(false)
       }
@@ -697,7 +712,7 @@ export function TherapistDashboardPage() {
         if (!ignore) {
           setExpressionSummary(null); setDialogueSummary([])
           setDialogueProgress(null); setWeeklyParticipation(null); setWeeklyHighlight(null)
-          setFeedback(extractApiErrorMessage(error))
+          setFeedback(getAnalysisErrorMessage(error))
         }
       } finally {
         if (!ignore) setLoadingStats(false)
@@ -787,7 +802,7 @@ export function TherapistDashboardPage() {
           </section>
 
           {/* 탭 */}
-          <div className="ms-tabs mt-5">
+          <div className="ms-tabs therapist-analysis-tabs">
             {tabs.map((tab) => (
               <button
                 className={`ms-tab ${activeTab === tab.id ? 'active' : ''}`}

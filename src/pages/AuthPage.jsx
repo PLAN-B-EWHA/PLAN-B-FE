@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { apiFetch, extractApiErrorMessage } from '../lib/api'
@@ -19,9 +19,9 @@ const registerInitialState = {
 function Field({ label, name, type = 'text', value, onChange, placeholder }) {
   return (
     <label className="block space-y-2">
-      <span className="text-[13px] font-medium text-slate-800">{label}</span>
+      <span className="text-[13px] font-semibold tracking-tight text-slate-700">{label}</span>
       <input
-        className="w-full rounded-full border border-slate-200 bg-white px-5 py-3.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[var(--brand-500)]"
+        className="w-full rounded-2xl border border-slate-200 bg-white px-5 py-3.5 text-sm font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[var(--brand-500)] focus:ring-2 focus:ring-[var(--brand-100)]"
         name={name}
         onChange={onChange}
         placeholder={placeholder}
@@ -34,10 +34,10 @@ function Field({ label, name, type = 'text', value, onChange, placeholder }) {
 
 function AuthTabs({ tab, setTab }) {
   return (
-    <div className="mx-auto grid w-full max-w-[220px] grid-cols-2 rounded-full bg-[var(--brand-50)] p-1">
+    <div className="mx-auto grid w-full max-w-[240px] grid-cols-2 rounded-full bg-[var(--brand-50)] p-1">
       <button
-        className={`rounded-full px-4 py-2.5 text-xs font-semibold transition ${
-          tab === 'login' ? 'bg-[var(--brand-500)] text-white' : 'text-[var(--brand-700)]'
+        className={`rounded-full px-4 py-2.5 text-[13px] font-bold tracking-tight transition ${
+          tab === 'login' ? 'bg-[var(--brand-500)] text-white shadow-sm' : 'text-[var(--brand-700)]'
         }`}
         onClick={() => setTab('login')}
         type="button"
@@ -45,8 +45,8 @@ function AuthTabs({ tab, setTab }) {
         로그인
       </button>
       <button
-        className={`rounded-full px-4 py-2.5 text-xs font-semibold transition ${
-          tab === 'register' ? 'bg-[var(--brand-500)] text-white' : 'text-[var(--brand-700)]'
+        className={`rounded-full px-4 py-2.5 text-[13px] font-bold tracking-tight transition ${
+          tab === 'register' ? 'bg-[var(--brand-500)] text-white shadow-sm' : 'text-[var(--brand-700)]'
         }`}
         onClick={() => setTab('register')}
         type="button"
@@ -75,7 +75,7 @@ function VisualPanel() {
           <br />
           더 정확히 이해해요
         </h1>
-        <p className="mt-3 text-xl font-medium text-slate-100">치료소통 통계 플랫폼</p>
+        <p className="mt-3 text-base font-semibold text-slate-100/80">치료소통 통계 플랫폼</p>
       </div>
     </section>
   )
@@ -189,19 +189,19 @@ export function AuthPage() {
 
         <section className="flex min-h-[760px] flex-col px-4 py-3 md:px-8 lg:px-10">
           <div className="flex items-center justify-end">
-            <p className="text-xl font-black tracking-tight text-slate-950">My Expression Friend</p>
+            <p className="text-[17px] font-black tracking-tight text-slate-950">My Expression Friend</p>
           </div>
 
           <div className="mx-auto flex w-full max-w-[440px] flex-1 flex-col pt-20">
             <div className="min-h-[160px] text-center">
-              <p className="text-sm text-slate-700">Welcome to My Expression Friend</p>
+              <p className="text-[13px] font-semibold text-[var(--brand-500)]">Welcome to My Expression Friend</p>
               <div className="mt-5">
                 <AuthTabs setTab={setTab} tab={tab} />
               </div>
-              <div className="mt-10">
+              <div className="mt-8">
                 <p className="mx-auto max-w-[360px] text-sm leading-6 text-slate-500">
                   {tab === 'login'
-                    ? '로그인 후 학생 기록, 치료 메모, 권한 관리 화면으로 바로 이동할 수 있습니다.'
+                    ? '로그인 후 학생 기록, 치료 분석, 권한 관리 화면으로 바로 이동할 수 있습니다.'
                     : '이메일과 이름을 입력하고 계정을 생성해 서비스를 시작해 보세요.'}
                 </p>
               </div>
@@ -209,7 +209,7 @@ export function AuthPage() {
 
             {feedback.message ? (
               <div
-                className={`mt-6 rounded-3xl border px-4 py-3 text-sm font-medium ${
+                className={`mt-6 rounded-2xl border px-4 py-3 text-[13px] font-semibold ${
                   feedback.type === 'success'
                     ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
                     : 'border-rose-200 bg-rose-50 text-rose-700'
@@ -223,7 +223,7 @@ export function AuthPage() {
               {tab === 'login' ? (
                 <form className="space-y-5" onSubmit={handleLoginSubmit}>
                   <Field
-                    label="Email Address"
+                    label="이메일 주소"
                     name="email"
                     onChange={handleLoginChange}
                     placeholder="이메일 주소를 입력해 주세요"
@@ -231,7 +231,7 @@ export function AuthPage() {
                     value={loginForm.email}
                   />
                   <Field
-                    label="Password"
+                    label="비밀번호"
                     name="password"
                     onChange={handleLoginChange}
                     placeholder="비밀번호를 입력해 주세요"
@@ -239,30 +239,30 @@ export function AuthPage() {
                     value={loginForm.password}
                   />
 
-                  <div className="flex items-center justify-start text-[11px] text-slate-500">
-                    <label className="flex items-center gap-2">
+                  <div className="flex items-center text-[12px] text-slate-500">
+                    <label className="flex cursor-pointer items-center gap-2">
                       <input
                         checked={rememberEmail}
-                        className="h-3.5 w-3.5 rounded border-slate-300 text-[var(--brand-500)]"
+                        className="h-3.5 w-3.5 rounded border-slate-300 accent-[var(--brand-500)]"
                         onChange={(event) => setRememberEmail(event.target.checked)}
                         type="checkbox"
                       />
-                      <span>이메일 주소 기억하기</span>
+                      <span className="font-medium">이메일 주소 기억하기</span>
                     </label>
                   </div>
 
                   <button
-                    className="mx-auto mt-8 block w-full max-w-[170px] rounded-full bg-[var(--brand-500)] px-4 py-3.5 text-sm font-semibold text-white transition hover:bg-[var(--brand-600)] disabled:cursor-not-allowed disabled:bg-slate-400"
+                    className="mx-auto mt-6 block w-full max-w-[200px] rounded-full bg-[var(--brand-500)] px-4 py-3.5 text-sm font-bold tracking-tight text-white transition hover:bg-[var(--brand-600)] disabled:cursor-not-allowed disabled:bg-slate-400"
                     disabled={submitting}
                     type="submit"
                   >
-                    {submitting ? '로그인 중...' : 'Login'}
+                    {submitting ? '로그인 중...' : '로그인'}
                   </button>
                 </form>
               ) : (
                 <form className="space-y-5" onSubmit={handleRegisterSubmit}>
                   <Field
-                    label="Email Address"
+                    label="이메일 주소"
                     name="email"
                     onChange={handleRegisterChange}
                     placeholder="이메일 주소를 입력해 주세요"
@@ -270,14 +270,14 @@ export function AuthPage() {
                     value={registerForm.email}
                   />
                   <Field
-                    label="Name"
+                    label="이름"
                     name="name"
                     onChange={handleRegisterChange}
                     placeholder="이름을 입력해 주세요"
                     value={registerForm.name}
                   />
                   <Field
-                    label="Password"
+                    label="비밀번호"
                     name="password"
                     onChange={handleRegisterChange}
                     placeholder="비밀번호를 입력해 주세요"
@@ -285,31 +285,31 @@ export function AuthPage() {
                     value={registerForm.password}
                   />
 
-                  <div className="rounded-3xl bg-[var(--brand-50)] px-4 py-3 text-xs leading-5 text-slate-600">
+                  <div className="rounded-2xl bg-[var(--brand-50)] px-4 py-3 text-xs font-medium leading-5 text-slate-600">
                     {emailCheck === null
-                      ? '가입 전에 이메일 사용 가능 여부를 확인할 수 있습니다.'
+                      ? '가입 전에 이메일 사용 가능 여부를 확인할 수 있어요.'
                       : emailCheck
-                        ? '현재 이메일은 사용 가능합니다.'
-                        : '현재 이메일은 이미 사용 중입니다.'}
+                        ? '✓ 사용 가능한 이메일입니다.'
+                        : '✗ 이미 사용 중인 이메일입니다.'}
                   </div>
 
                   <div className="flex justify-center">
                     <button
-                      className="rounded-full border border-[var(--brand-200)] bg-white px-4 py-2.5 text-xs font-semibold text-[var(--brand-700)] transition hover:bg-[var(--brand-50)] disabled:cursor-not-allowed disabled:opacity-60"
+                      className="rounded-full border border-[var(--brand-200)] bg-white px-5 py-2.5 text-[13px] font-bold tracking-tight text-[var(--brand-700)] transition hover:bg-[var(--brand-50)] disabled:cursor-not-allowed disabled:opacity-60"
                       disabled={submitting}
                       onClick={handleCheckEmail}
                       type="button"
                     >
-                      이메일 확인
+                      이메일 중복 확인
                     </button>
                   </div>
 
                   <button
-                    className="mx-auto mt-6 block w-full max-w-[170px] rounded-full bg-[var(--brand-500)] px-4 py-3.5 text-sm font-semibold text-white transition hover:bg-[var(--brand-600)] disabled:cursor-not-allowed disabled:bg-slate-400"
+                    className="mx-auto mt-4 block w-full max-w-[200px] rounded-full bg-[var(--brand-500)] px-4 py-3.5 text-sm font-bold tracking-tight text-white transition hover:bg-[var(--brand-600)] disabled:cursor-not-allowed disabled:bg-slate-400"
                     disabled={submitting}
                     type="submit"
                   >
-                    {submitting ? '가입 처리 중...' : 'Register'}
+                    {submitting ? '가입 처리 중...' : '계정 만들기'}
                   </button>
                 </form>
               )}

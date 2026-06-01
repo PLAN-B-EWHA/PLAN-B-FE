@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ParentShell } from '../components/ParentShell'
 import { useAuth } from '../contexts/AuthContext'
 import { apiFetch, extractApiErrorMessage, extractApiPayload } from '../lib/api'
-import { calculateAgeLabel, getGenderLabel } from '../lib/childUtils'
+import { calculateAgeLabel, canWriteNote, getGenderLabel } from '../lib/childUtils'
 
 const dayLabels = ['월', '화', '수', '목', '금', '토', '일']
 
@@ -171,7 +171,7 @@ export function ParentHomePage() {
     async function loadChildren() {
       if (!accessToken) { setLoading(false); return }
       try {
-        const response = await apiFetch('/children/my', { method: 'GET', token: accessToken })
+        const response = await apiFetch('/children/accessible', { method: 'GET', token: accessToken })
         const payload = extractApiPayload(response) || []
         if (!ignore) {
           setChildren(payload)
@@ -201,16 +201,17 @@ export function ParentHomePage() {
 
       setStatLoading(true)
       try {
+        const canLoadHomework = canWriteNote(selectedChild)
         const [expressionRes, missionRes, currentMissionRes, participationRes] = await Promise.all([
           apiFetch(`/parent/children/${selectedChildId}/expression/summary`, { method: 'GET', token: accessToken }),
-          apiFetch(`/parent/children/${selectedChildId}/homework/summary`, { method: 'GET', token: accessToken }),
-          apiFetch(`/parent/children/${selectedChildId}/homework/current`, { method: 'GET', token: accessToken }),
+          canLoadHomework ? apiFetch(`/parent/children/${selectedChildId}/homework/summary`, { method: 'GET', token: accessToken }) : Promise.resolve(null),
+          canLoadHomework ? apiFetch(`/parent/children/${selectedChildId}/homework/current`, { method: 'GET', token: accessToken }) : Promise.resolve(null),
           apiFetch(`/parent/children/${selectedChildId}/weekly-participation`, { method: 'GET', token: accessToken }),
         ])
         if (!ignore) {
           setExpressionSummary(extractApiPayload(expressionRes))
-          setMissionSummary(extractApiPayload(missionRes))
-          setCurrentMission(extractApiPayload(currentMissionRes) || null)
+          setMissionSummary(missionRes ? extractApiPayload(missionRes) : null)
+          setCurrentMission(currentMissionRes ? extractApiPayload(currentMissionRes) || null : null)
           setWeeklyParticipation(extractApiPayload(participationRes) || null)
           setFeedback('')
         }
@@ -222,7 +223,7 @@ export function ParentHomePage() {
     }
     loadHomeStats()
     return () => { ignore = true }
-  }, [accessToken, selectedChildId])
+  }, [accessToken, selectedChildId, selectedChild])
 
   const readyEmotions = useMemo(
     () => (expressionSummary?.emotions || []).filter((emotion) => emotion.dataReady),

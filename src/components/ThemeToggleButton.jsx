@@ -1,42 +1,19 @@
 import { useTheme } from '../contexts/ThemeContext'
 
 export function ThemeToggleButton() {
-  const { fontScale, isDarkMode, toggleTheme, palette, setPalette, setFontScale } = useTheme()
-  const palettes = ['clinical', 'sage-clinical', 'deep']
-  const fontScales = ['compact', 'normal', 'large']
-  const paletteColors = {
-    clinical: '#1f4f5f',
-    'sage-clinical': '#4f6b43',
-    deep: '#3a6db0',
-  }
-
-  function cyclePalette() {
-    const index = palettes.indexOf(palette)
-    const next = palettes[(index + 1) % palettes.length]
-    setPalette(next)
-  }
-
-  function cycleFontScale() {
-    const index = fontScales.indexOf(fontScale)
-    const next = fontScales[(index + 1) % fontScales.length]
-    setFontScale(next)
-  }
-
-  const fontLabel = fontScale === 'compact' ? '가-' : fontScale === 'large' ? '가+' : '가'
+  const { isDarkMode, toggleTheme } = useTheme()
 
   return (
-    <section className="theme-compact-controls">
-      <button aria-label="색상 팔레트 변경" className="theme-circle-btn" onClick={cyclePalette} title="색상 팔레트" type="button">
-        <span className="theme-circle-fill" style={{ backgroundColor: paletteColors[palette] || paletteColors.clinical }} />
-      </button>
-      <button aria-label="글자 크기 변경" className="theme-font-btn" onClick={cycleFontScale} title="글자 크기" type="button">
-        {fontLabel}
-      </button>
-      <button aria-label="화면 모드 변경" className="theme-mode-btn compact" onClick={toggleTheme} title="화면 모드" type="button">
-        <div className={`theme-toggle ${isDarkMode ? 'dark' : ''}`}>
-          <span />
-        </div>
-      </button>
-    </section>
+    <button
+      aria-label="화면 모드 변경"
+      className="theme-mode-btn compact"
+      onClick={toggleTheme}
+      title={isDarkMode ? '라이트 모드로 전환' : '다크 모드로 전환'}
+      type="button"
+    >
+      <div className={`theme-toggle ${isDarkMode ? 'dark' : ''}`}>
+        <span />
+      </div>
+    </button>
   )
 }

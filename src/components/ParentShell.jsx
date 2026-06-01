@@ -1,4 +1,5 @@
-﻿import { useLocation, useNavigate } from 'react-router-dom'
+import { useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { ThemeToggleButton } from './ThemeToggleButton'
 import { useAuth } from '../contexts/AuthContext'
 import { calculateAgeLabel, resolveUploadUrl } from '../lib/childUtils'
@@ -38,8 +39,14 @@ export function ParentShell({ actions, children, selectedChild, childCount = 0, 
   const navigate = useNavigate()
   const location = useLocation()
   const { jwtPayload, logout, user } = useAuth()
+  const [isNavOpen, setIsNavOpen] = useState(false)
   const activeId = getActiveId(location.pathname)
   const displayName = user?.name || jwtPayload?.name || '보호자'
+
+  function handleNavigate(path) {
+    navigate(path)
+    setIsNavOpen(false)
+  }
 
   async function handleLogout() {
     await logout()
@@ -51,18 +58,40 @@ export function ParentShell({ actions, children, selectedChild, childCount = 0, 
       <header className="stats-app-header">
         <p className="stats-app-brand">My Expression Friend</p>
         <div className="stats-app-actions">
+          <button
+            aria-expanded={isNavOpen}
+            aria-label={isNavOpen ? '메뉴 닫기' : '메뉴 열기'}
+            className="stats-menu-toggle"
+            onClick={() => setIsNavOpen((value) => !value)}
+            type="button"
+          >
+            <span aria-hidden="true" className="stats-menu-lines">
+              <span />
+              <span />
+              <span />
+            </span>
+          </button>
           <ThemeToggleButton />
         </div>
       </header>
 
-      <aside className="stats-sidebar">
+      {isNavOpen ? (
+        <button
+          aria-label="메뉴 닫기"
+          className="stats-sidebar-backdrop"
+          onClick={() => setIsNavOpen(false)}
+          type="button"
+        />
+      ) : null}
+
+      <aside className={`stats-sidebar ${isNavOpen ? 'mobile-open' : ''}`}>
         <div>
           <nav className="stats-nav">
             {navItems.map((item) => (
               <button
                 key={item.id}
                 className={`stats-nav-item ${activeId === item.id ? 'active' : ''}`}
-                onClick={() => navigate(item.path)}
+                onClick={() => handleNavigate(item.path)}
                 type="button"
               >
                 <SidebarNavIcon id={item.id} />

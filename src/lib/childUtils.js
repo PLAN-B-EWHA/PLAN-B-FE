@@ -85,12 +85,27 @@ export function resolveUploadUrl(url) {
   return resolveApiUrl(url, { skipApiPrefix: true })
 }
 
-export function canViewReport(child) {
+export function hasChildPermission(child, permission) {
   const permissions = child?.myPermissions || []
-  return child?.isPrimaryParent || permissions.includes('VIEW_REPORT')
+  return child?.isPrimaryParent || permissions.includes(permission)
+}
+
+export function canPlayGame(child) {
+  return hasChildPermission(child, 'PLAY_GAME')
+}
+
+export function canViewReport(child) {
+  return hasChildPermission(child, 'VIEW_REPORT')
+}
+
+export function canWriteNote(child) {
+  return hasChildPermission(child, 'WRITE_NOTE')
 }
 
 export function canAssignMission(child) {
-  const permissions = child?.myPermissions || []
-  return child?.isPrimaryParent || permissions.includes('ASSIGN_MISSION') || permissions.includes('MANAGE')
+  return hasChildPermission(child, 'ASSIGN_MISSION') || hasChildPermission(child, 'MANAGE')
+}
+
+export function canManageStudent(child) {
+  return hasChildPermission(child, 'MANAGE')
 }

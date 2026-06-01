@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { apiFetch, extractApiErrorMessage, extractApiPayload } from '../lib/api'
 import { MarkdownView } from '../lib/MarkdownView'
 import { PinVerifyModal } from '../lib/PinVerifyModal'
+import { canViewReport } from '../lib/childUtils'
 
 const reportTypeLabels = {
   WEEKLY: '주간 리포트',
@@ -118,9 +119,9 @@ export function ParentReportPage() {
     async function loadChildren() {
       if (!accessToken) { setLoading(false); return }
       try {
-        const res = await apiFetch('/children/my', { method: 'GET', token: accessToken })
+        const res = await apiFetch('/children/accessible', { method: 'GET', token: accessToken })
         const raw = extractApiPayload(res) || []
-        const list = Array.isArray(raw) ? raw : (raw?.content || [])
+        const list = (Array.isArray(raw) ? raw : (raw?.content || [])).filter(canViewReport)
         if (!ignore) {
           setChildren(list)
           setSelectedChildId(list[0]?.childId || null)
