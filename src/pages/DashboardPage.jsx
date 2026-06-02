@@ -1,6 +1,7 @@
 ﻿import { useLocation } from 'react-router-dom'
 import { AdminRagDebugPage } from './AdminRagDebugPage'
 import { AdminRagSourcePage } from './AdminRagSourcePage'
+import { AdminRealtimeConfigPage } from './AdminRealtimeConfigPage'
 import { AdminScenarioBatchPage } from './AdminScenarioBatchPage'
 import { AdminScenarioReviewPage } from './AdminScenarioReviewPage'
 import { AdminUserManagementPage } from './AdminUserManagementPage'
@@ -30,12 +31,14 @@ export function DashboardPage() {
   const isAdminRagSourcePage = location.pathname.startsWith('/app/admin/rag-sources')
   const isAdminScenarioBatchPage = location.pathname.startsWith('/app/admin/scenario-batch')
   const isAdminScenarioReviewPage = location.pathname.startsWith('/app/admin/scenario-review')
+  const isAdminRealtimeConfigPage = location.pathname.startsWith('/app/admin/realtime-config')
   const isAdminRagPage = location.pathname.startsWith('/app/admin/rag')
   const isAdminUsersPage = location.pathname.startsWith('/app/admin/users')
 
   if (roles.includes('ADMIN')) {
     if (isAdminScenarioBatchPage) return <AdminScenarioBatchPage />
     if (isAdminScenarioReviewPage) return <AdminScenarioReviewPage />
+    if (isAdminRealtimeConfigPage) return <AdminRealtimeConfigPage />
     if (isAdminRagSourcePage) return <AdminRagSourcePage />
     if (isAdminRagPage) return <AdminRagDebugPage />
     if (isAdminUsersPage || location.pathname === '/app') return <AdminUserManagementPage />
