@@ -163,13 +163,28 @@ export function AdminRealtimeConfigPage() {
               <p className="text-sm text-slate-500">설정을 불러오는 중입니다...</p>
             ) : (
               <div className="grid gap-4">
-                <label className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-4 py-3">
+                <div className="flex flex-col gap-3 rounded-xl border border-slate-200 px-4 py-3 md:flex-row md:items-center md:justify-between">
                   <span>
                     <span className="block text-sm font-semibold text-slate-900">Realtime 사용</span>
                     <span className="block text-xs text-slate-500">Unity Realtime client secret 생성 기능을 켜거나 끕니다.</span>
                   </span>
-                  <input checked={form.enabled} onChange={(e) => updateField('enabled', e.target.checked)} type="checkbox" />
-                </label>
+                  <div className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1">
+                    <button
+                      className={`rounded-lg px-4 py-2 text-sm font-semibold ${form.enabled ? 'bg-[var(--brand-500)] text-white shadow-sm' : 'text-slate-600'}`}
+                      onClick={() => updateField('enabled', true)}
+                      type="button"
+                    >
+                      사용
+                    </button>
+                    <button
+                      className={`rounded-lg px-4 py-2 text-sm font-semibold ${!form.enabled ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600'}`}
+                      onClick={() => updateField('enabled', false)}
+                      type="button"
+                    >
+                      중지
+                    </button>
+                  </div>
+                </div>
 
                 <div className="grid gap-3 md:grid-cols-2">
                   <label className="grid gap-1 text-sm font-semibold text-slate-700">

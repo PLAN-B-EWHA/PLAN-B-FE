@@ -316,6 +316,7 @@ export function ParentDashboardPage() {
   }, [accessToken, selectedChildId])
 
   const emotions = expressionSummary?.emotions || []
+  const readyEmotions = emotions.filter((emotion) => emotion?.emotion && emotion.dataReady !== false)
   const roadmapItems = dialogueProgress?.themes?.length
     ? dialogueProgress.themes
     : roadmapFallback.map((theme, index) => ({ theme, weekNumber: index + 1, status: index === 0 ? 'COMPLETED' : 'NOT_STARTED' }))
@@ -357,9 +358,21 @@ export function ParentDashboardPage() {
             <div className="s-note">숫자 대신 흐름과 상태로 표시해요</div>
           </div>
           <section className="parent-emotion-grid">
-            {(emotions.length ? emotions.slice(0, 4) : [{ emotion: 'angry', trendDirection: 'IMPROVING' }, { emotion: 'sad', trendDirection: 'STABLE' }]).map((emotion) => (
-              <EmotionCard emotion={emotion} key={emotion.emotion} />
-            ))}
+            {readyEmotions.length > 0 ? (
+              readyEmotions.slice(0, 4).map((emotion) => (
+                <EmotionCard emotion={emotion} key={emotion.emotion} />
+              ))
+            ) : (
+              <article className="stats-panel parent-emotion-card">
+                <div className="card-head">
+                  <div>
+                    <h3>표정 활동 기록이 없습니다.</h3>
+                    <p className="sub">게임 기록이 쌓이면 표정별 흐름을 보여드릴게요.</p>
+                  </div>
+                  <span className="badge badge-muted">기록 없음</span>
+                </div>
+              </article>
+            )}
           </section>
 
           <div className="section-head parent-stat-section-head">
